@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Quote, RefreshQwerty } from 'lucide-react';
+// 修正：使用 RefreshCw (Clockwise) 替代不存在的 RefreshQwerty
+import { Quote, RefreshCw } from 'lucide-react';
 import { Card } from './ui/Card';
 
 const DailyQuote = () => {
@@ -27,8 +28,9 @@ const DailyQuote = () => {
   return (
     <Card className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-none relative overflow-hidden group">
       <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+         {/* 修正：按钮中使用 RefreshCw 图标 */}
          <button onClick={fetchQuote} disabled={loading} className="hover:rotate-180 transition-transform duration-500">
-            <RefreshQwerty size={18} />
+            <RefreshCw size={18} />
          </button>
       </div>
       <div className="relative z-10">
