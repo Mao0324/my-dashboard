@@ -6,6 +6,9 @@ import {
   GoogleAuthProvider, 
   signOut, 
   onAuthStateChanged,
+  createUserWithEmailAndPassword, // 新增: 邮箱注册
+  signInWithEmailAndPassword,     // 新增: 邮箱登录
+  updateProfile                   // 新增: 更新用户信息(昵称)
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -34,7 +37,10 @@ import {
   Thermometer,
   Save,
   X,
-  MapPin
+  MapPin,
+  Mail,
+  User,
+  Lock
 } from 'lucide-react';
 
 // --- 城市数据配置 ---
@@ -83,7 +89,7 @@ const Card = ({ children, className = "" }) => (
   </div>
 );
 
-const Button = ({ onClick, children, variant = "primary", className = "", disabled = false }) => {
+const Button = ({ onClick, children, variant = "primary", className = "", disabled = false, type = "button" }) => {
   const baseStyle = "px-4 py-2 rounded-xl font-medium transition-all duration-200 flex items-center gap-2 active:scale-95 justify-center";
   const variants = {
     primary: "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200 shadow-md",
@@ -94,6 +100,7 @@ const Button = ({ onClick, children, variant = "primary", className = "", disabl
   };
   return (
     <button 
+      type={type}
       onClick={onClick} 
       disabled={disabled}
       className={`${baseStyle} ${variants[variant]} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
@@ -103,9 +110,152 @@ const Button = ({ onClick, children, variant = "primary", className = "", disabl
   );
 };
 
+// --- 认证模态框组件 (Auth Modal) ---
+const AuthModal = ({ isOpen, onClose, onGoogleLogin }) => {
+  const [isRegister, setIsRegister] = useState(false); // 切换登录/注册
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState(""); // 注册时用
+  const [error, setError] = useState("");
+  const [loading,HZ] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      if (!auth) throw new Error("Firebase 未配置");
+
+      if (isRegister) {
+        // 注册逻辑
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // 更新用户昵称
+        await updateProfile(userCredential.user, { displayName: name });
+      } else {
+        // 登录逻辑
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+      onClose(); // 成功后关闭弹窗
+    } catch (err) {
+      console.error("Auth Error:", err);
+      let msg = "操作失败，请重试";
+      if (err.code === 'auth/email-already-in-use') msg = "该邮箱已被注册";
+      else if (err.code === 'auth/invalid-email') msg = "邮箱格式不正确";
+      else if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') msg = "账号或密码错误";
+      else if (err.code === 'auth/wrong-password') msg = "密码错误";
+      else if (err.code === 'auth/weak-password') msg = "密码太弱 (至少6位)";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        {/* 头部 */}
+        <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold">{isRegister ? "创建账户" : "欢迎回来"}</h2>
+            <p className="text-blue-100 text-sm mt-1">{isRegister ? "开始你的个人仪表盘之旅" : "登录以访问你的数据"}</p>
+          </div>
+          <button onClick={onClose} className="text-white/80 hover:text-white transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+
+        {/* 表单部分 */}
+        <div className="p-8">
+          {error && (
+            <div className="mb-6 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm border border-red-100 flex items-center gap-2">
+              <Info size={16} /> {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {isRegister && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 ml-1">昵称</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
+                  <input 
+                    type="text" 
+                    required 
+                    placeholder="你的名字"
+                    value={name} 
+                    onChange={e => setName(e.target.value)} 
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" 
+                  />
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 ml-1">邮箱</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
+                <input 
+                  type="email" 
+                  required 
+                  placeholder="name@example.com"
+                  value={email} 
+                  onChange={e => setEmail(e.target.value)} 
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" 
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 ml-1">密码</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
+                <input 
+                  type="password" 
+                  required 
+                  placeholder="••••••••"
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" 
+                />
+              </div>
+            </div>
+
+            <Button type="submit" className="w-full justify-center py-3 text-lg mt-2" disabled={loading}>
+              {loading ? "处理中..." : (isRegister ? "注册" : "登录")}
+            </Button>
+          </form>
+
+          <div className="relative flex py-6 items-center">
+            <div className="flex-grow border-t border-gray-100"></div>
+            <span className="flex-shrink-0 mx-4 text-gray-400 text-xs">或者使用第三方登录</span>
+            <div className="flex-grow border-t border-gray-100"></div>
+          </div>
+
+          <Button variant="secondary" className="w-full justify-center py-2.5 border border-gray-200 bg-white" onClick={onGoogleLogin}>
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google"/>
+            <span className="text-gray-600">Google 账号登录</span>
+          </Button>
+
+          <div className="text-center text-sm text-gray-500 mt-6">
+            {isRegister ? "已有账号？" : "没有账号？"}
+            <button 
+              type="button"
+              onClick={() => { setIsRegister(!isRegister); setError(""); }} 
+              className="text-blue-600 font-bold hover:underline ml-1"
+            >
+              {isRegister ? "直接登录" : "立即注册"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- 子页面组件 ---
 
-const Dashboard = ({ weather, settings, announcements, user, onDelete, onPost, newAnnouncement, setNewAnnouncement,onLogin }) => {
+const Dashboard = ({ weather, settings, announcements, user, onDelete, onPost, newAnnouncement, setNewAnnouncement, onOpenAuth }) => {
   // 计算倒数日函数
   const calculateDaysLeft = (dateStr) => {
     if (!dateStr) return 0;
@@ -141,7 +291,7 @@ const Dashboard = ({ weather, settings, announcements, user, onDelete, onPost, n
         {/* 倒数日卡片列表 - 支持多个 */}
         {settings.events && settings.events.length > 0 ? (
           settings.events.map((event, index) => (
-            <Card key={index} className="bg-gradient-to-br from-purple-500 to-pink-600 text-white border-none relative overflow-hidden group">
+            <Card key={index} className="bg-gradient-to-br from-purple-500 to-pink-600 text-white border-none relative overflow-hidden group transition-transform hover:scale-[1.02]">
               <div className="flex justify-between items-center relative z-10">
                 <h3 className="text-purple-100 font-medium flex items-center gap-2">
                   <Calendar size={18} /> {event.name}
@@ -165,7 +315,7 @@ const Dashboard = ({ weather, settings, announcements, user, onDelete, onPost, n
         )}
       </div>
 
-      {/* 公告栏 (保持不变) */}
+      {/* 公告栏 */}
       <div className="md:col-span-2">
         <Card className="h-full flex flex-col">
           <div className="flex justify-between items-center mb-6">
@@ -173,13 +323,13 @@ const Dashboard = ({ weather, settings, announcements, user, onDelete, onPost, n
               <Bell className="text-blue-500" /> 公告栏
             </h2>
             {user && (
-              <span className="text-xs text-gray-400">作为 {user.displayName} 登录</span>
+              <span className="text-xs text-gray-400">作为 {user.displayName || user.email} 登录</span>
             )}
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-4 pr-2 min-h-[300px] max-h-[500px]">
             {announcements.map((ann) => (
-              <div key={ann.id} className="group p-4 rounded-xl bg-gray-50 hover:bg-blue-50 transition-colorsRv border border-gray-100">
+              <div key={ann.id} className="group p-4 rounded-xl bg-gray-50 hover:bg-blue-50 transition-colors border border-gray-100">
                 <div className="flex justify-between items-start">
                   <p className="text-gray-700 whitespace-pre-wrap break-words">{ann.text}</p>
                   {user && ann.uid === user.uid && (
@@ -222,7 +372,7 @@ const Dashboard = ({ weather, settings, announcements, user, onDelete, onPost, n
             </div>
           ) : (
             <div className="mt-6 pt-4 border-t border-gray-100 text-center">
-              <Button variant="secondary" onClick={onLogin} className="w-full justify-center">
+              <Button variant="secondary" onClick={onOpenAuth} className="w-full justify-center">
                 登录以发布公告
               </Button>
             </div>
@@ -233,7 +383,7 @@ const Dashboard = ({ weather, settings, announcements, user, onDelete, onPost, n
   );
 };
 
-const SettingsPage = ({ user, onLogin, settings, setSettings, onSave, loading }) => {
+const SettingsPage = ({ user, onOpenAuth, settings, setSettings, onSave, loading }) => {
   const [tempEvent, setTempEvent] = useState({ name: "", date: "" });
 
   // 添加新事件
@@ -250,7 +400,7 @@ const SettingsPage = ({ user, onLogin, settings, setSettings, onSave, loading })
     setSettings({ ...settings, events: newEvents });
   };
 
-  // 处理城市变更
+  //HZ 处理城市变更
   const handleCityChange = (e) => {
     const selectedCity = CITIES.find(c => c.value === e.target.value);
     if (selectedCity) {
@@ -273,7 +423,7 @@ const SettingsPage = ({ user, onLogin, settings, setSettings, onSave, loading })
       {!user ? (
          <div className="text-center py-10">
            <p className="text-gray-500 mb-4">请先登录以同步您的偏好设置到云端。</p>
-           <Button onClick={onLogin} className="mx-auto">立即登录</Button>
+           <Button onClick={onOpenAuth} className="mx-auto">立即登录</Button>
          </div>
       ) : (
         <div className="space-y-8">
@@ -435,6 +585,7 @@ export default function App() {
   const [weather, setWeather] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
   const [newAnnouncement, setNewAnnouncement] = useState("");
+  const [showAuthModal, setShowAuthModal] = useState(false); // 控制登录弹窗
   
   // 默认设置
   const [settings, setSettings] = useState({
@@ -453,9 +604,7 @@ export default function App() {
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [bgImage, setBgImage] = useState("");
 
-  // 1. 初始化随机背景 (使用 picsum 提供的随机风景图)
   useEffect(() => {
-    // 使用时间戳防止缓存，获取一张 1920x1080 的自然风景图
     const randomBg = `https://picsum.photos/1920/1080?random=${Date.now()}`;
     setBgImage(randomBg);
   }, []);
@@ -478,7 +627,6 @@ export default function App() {
       const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setAnnouncements(posts);
     }, (error) => {
-      // Fallback content
       setAnnouncements([
         { id: 1, text: "欢迎来到你的个人仪表盘！请配置 Firebase 以启用实时功能。", createdAt: { seconds: Date.now() / 1000 } }
       ]);
@@ -486,11 +634,10 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 2. 根据设置的经纬度获取天气
+  // 根据设置的经纬度获取天气
   useEffect(() => {
     const fetchWeather = async () => {
       const { latitude, longitude } = settings;
-      // 如果设置里没有经纬度（旧数据），尝试从CITIES查找默认值
       let lat = latitude;
       let lon = longitude;
       
@@ -511,13 +658,15 @@ export default function App() {
     fetchWeather();
   }, [settings.city, settings.latitude, settings.longitude]);
 
-  const handleLogin = async () => {
+  // Google 登录处理
+  const handleGoogleLogin = async () => {
     if (!auth) { alert("请先在代码中配置 Firebase!"); return; }
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
+      setShowAuthModal(false); // 登录成功关闭弹窗
     } catch (error) {
-      console.error("登录失败", error);
+      console.error("Google 登录失败", error);
     }
   };
 
@@ -528,7 +677,7 @@ export default function App() {
     try {
       await addDoc(collection(db, "announcements"), {
         text: newAnnouncement,
-        author: user.displayName,
+        author: user.displayName || user.email.split('@')[0],
         uid: user.uid,
         createdAt: new Date()
       });
@@ -554,7 +703,6 @@ export default function App() {
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data();
-        // 兼容旧数据格式：如果 events 不存在但有 targetDate，转换一下
         if (!data.events && data.targetDate) {
             data.events = [{ name: data.targetName || "目标日", date: data.targetDate }];
         }
@@ -586,10 +734,17 @@ export default function App() {
       className="min-h-screen text-gray-800 font-sans selection:bg-blue-200 bg-cover bg-center bg-fixed transition-all duration-1000"
       style={{ 
         backgroundImage: `url(${bgImage})`,
-        backgroundColor: '#f3f4f6' // Fallback color
+        backgroundColor: '#f3f4f6'
       }}
     >
-      {/* 背景遮罩，确保文字可读性 */}
+      {/* 认证弹窗 */}
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+        onGoogleLogin={handleGoogleLogin}
+      />
+
+      {/* 背景遮罩 */}
       <div className="min-h-screen bg-black/10 backdrop-blur-[2px] overflow-y-auto">
         
         {/* 顶部导航栏 */}
@@ -629,14 +784,14 @@ export default function App() {
                   <img 
                     src={user.photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} 
                     alt="Avatar" 
-                    className="w-8 h-8 rounded-full border border-gray-200 shadow-sm"
+                    className="w-8 h-8 rounded-full border border-gray-200 shadow-sm bg-white"
                   />
                   <Button variant="ghost" onClick={handleLogout} className="!px-2 bg-white/50 hover:bg-white">
                     <LogOut size={18} />
                   </Button>
                 </div>
               ) : (
-                <Button onClick={handleLogin} variant="primary" className="text-sm shadow-lg">
+                <Button onClick={() => setShowAuthModal(true)} variant="primary" className="text-sm shadow-lg">
                   <LogIn size={16} /> 登录
                 </Button>
               )}
@@ -672,11 +827,11 @@ export default function App() {
             onPost={postAnnouncement}
             newAnnouncement={newAnnouncement}
             setNewAnnouncement={setNewAnnouncement}
-            onLogin={handleLogin}
+            onOpenAuth={() => setShowAuthModal(true)}
           />}
           {activeTab === 'settings' && <SettingsPage 
             user={user}
-            onLogin={handleLogin}
+            onOpenAuth={() => setShowAuthModal(true)}
             settings={settings}
             setSettings={setSettings}
             onSave={saveSettings}
