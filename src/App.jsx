@@ -6,7 +6,6 @@ import {
   GoogleAuthProvider, 
   signOut, 
   onAuthStateChanged,
-  signInAnonymously
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -37,9 +36,6 @@ import {
 } from 'lucide-react';
 
 // --- 配置部分 ---
-// 注意：在实际部署时，这些应该从环境变量中获取，但为了教学方便，
-// 你需要将从 Firebase 控制台获取的配置填入这里。
-// 如果你暂时没有配置，应用会以"演示模式"运行，数据不会保存到云端。
 const firebaseConfig = {
   apiKey: "AIzaSyDkRBknBGFNGZ-QLWKvbPf9nJZy2dxN45I",
   authDomain: "my-dashboard-c434c.firebaseapp.com",
@@ -56,11 +52,10 @@ try {
   auth = getAuth(app);
   db = getFirestore(app);
 } catch (e) {
-  console.warn("Firebase 初始化失败，请检查配置。目前处于离线UI演示模式。");
+  console.warn("Firebase 初始化失败");
 }
 
 // --- 辅助组件 ---
-
 const Card = ({ children, className = "" }) => (
   <div className={`bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 p-6 ${className}`}>
     {children}
@@ -86,6 +81,249 @@ const Button = ({ onClick, children, variant = "primary", className = "", disabl
   );
 };
 
+// --- 子页面组件 (移到外部以修复输入焦点问题) ---
+
+const Dashboard = ({ weather, settings, targetName, daysLeft, targetDate, announcements, user, onDelete, onPost, newAnnouncement, setNewAnnouncement, onLogin }) => (
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
+    <div className="space-y-6">
+      {/* 天气卡片 */}
+      <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="text-blue-100 font-medium flex items-center gap-2">
+              <CloudRain size={18} /> 今日天气
+            </h3>
+            <p className="text-xs text-blue-200 mt-1">{settings.city}</p>
+          </div>
+          <div className="text-4xl font-bold">
+            {weather ? Math.round(weather.current.temperature_2m) : "--"}°
+          </div>
+        </div>
+        <div className="mt-6 flex justify-between text-sm text-blue-100">
+          <span>最高: {weather ? weather.daily.temperature_2m_max[0] : "--"}°</span>
+          <span>最低: {weather ? weather.daily.temperature_2m_min[0] : "--"}°</span>
+        </div>
+      </Card>
+
+      {/* 倒数日卡片 */}
+      <Card className="bg-gradient-to-br from-purple-500 to-pink-600 text-white border-none">
+         <div className="flex justify-between items-center">
+           <h3 className="text-purple-100 font-medium flex items-center gap-2">
+             <Calendar size={18} /> {targetName}
+           </h3>
+           <span className="text-xs bg-white/20 px-2 py-1 rounded text-white">目标日</span>
+         </div>
+         <div className="mt-4 text-center">
+           <span className="text-5xl font-bold">{daysLeft}</span>
+           <span className="ml-2 text-purple-200">天</span>
+         </div>
+         <div className="mt-4 text-xs text-center text-purple-200">
+           {targetDate}
+         </div>
+      </Card>
+    </div>
+
+    <div className="md:col-span-2">
+      <Card className="h-full flex flex-col">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <Bell className="text-blue-500" /> 公告栏
+          </h2>
+          {user && (
+            <span className="text-xs text-gray-400">作为 {user.displayName} 登录</span>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-4 pr-2 min-h-[200px]">
+          {announcements.map((ann) => (
+            <div key={ann.id} className="group p-4 rounded-xl bg-gray-50 hover:bg-blue-50 transition-colors border border-gray-100">
+              <div className="flex justify-between items-start">
+                <p className="text-gray-700 whitespace-pre-wrap">{ann.text}</p>
+                {user && ann.uid === user.uid && (
+                  <button 
+                    onClick={() => onDelete(ann.id)}
+                    className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+              <div className="mt-2 flex justify-between items-center">
+                <span className="text-xs text-gray-400">
+                  {ann.createdAt?.seconds ? new Date(ann.createdAt.seconds * 1000).toLocaleDateString() : '刚刚'}
+                </span>
+                {ann.author && <span className="text-xs font-medium text-blue-500">@{ann.author}</span>}
+              </div>
+            </div>
+          ))}
+          {announcements.length === 0 && (
+            <div className="text-center text-gray-400 py-10">暂无公告</div>
+          )}
+        </div>
+
+        {user ? (
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newAnnouncement}
+                onChange={(e) => setNewAnnouncement(e.target.value)}
+                placeholder="发布新动态..."
+                className="flex-1 bg-gray-100 border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                onKeyDown={(e) => e.key === 'Enter' && onPost()}
+              />
+              <Button onClick={onPost}>
+                <Plus size={20} />
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 pt-4 border-t border-gray-100 text-center">
+            <Button variant="secondary" onClick={onLogin} className="w-full justify-center">
+              登录以发布公告
+            </Button>
+          </div>
+        )}
+      </Card>
+    </div>
+  </div>
+);
+
+const SettingsPage = ({ user, onLogin, settings, setSettings, targetName, setTargetName, targetDate, setTargetDate, onSave, loading }) => (
+  <div className="max-w-2xl mx-auto animate-fade-in">
+    <Card>
+      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+        <Settings className="text-blue-500" /> 自动化设置
+      </h2>
+      
+      {!user ? (
+         <div className="text-center py-10">
+           <p className="text-gray-500 mb-4">请先登录以同步您的偏好设置到云端。</p>
+           <Button onClick={onLogin} className="mx-auto">立即登录</Button>
+         </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="bg-blue-50 p-4 rounded-xl text-sm text-blue-700 flex gap-2">
+            <Info className="shrink-0" size={18} />
+            此处保存的设置将用于 GitHub Actions 每日邮件推送。
+          </div>
+
+          {/* 基本信息 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">所在城市 (Pinyin)</label>
+              <input 
+                type="text" 
+                value={settings.city}
+                onChange={(e) => setSettings({...settings, city: e.target.value})}
+                className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">接收邮箱</label>
+              <input 
+                type="email" 
+                value={settings.emailAddress}
+                placeholder="example@gmail.com"
+                onChange={(e) => setSettings({...settings, emailAddress: e.target.value})}
+                className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+          </div>
+
+          {/* 阈值设置 */}
+          <div className="space-y-4 border-t border-gray-100 pt-4">
+            <h3 className="font-medium text-gray-900 flex items-center gap-2">
+              <Thermometer size={18} /> 温度预警阈值
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div>
+                  <label className="block text-sm text-gray-600 mb-1">高温提醒 (&gt; X°C)</label>
+                  <input 
+                    type="number" 
+                    value={settings.tempHighThreshold}
+                    onChange={(e) => setSettings({...settings, tempHighThreshold: parseInt(e.target.value) || 0})}
+                    className="w-full p-2 rounded-lg border border-gray-300"
+                  />
+               </div>
+               <div>
+                  <label className="block text-sm text-gray-600 mb-1">低温提醒 (&lt; X°C)</label>
+                  <input 
+                    type="number" 
+                    value={settings.tempLowThreshold}
+                    onChange={(e) => setSettings({...settings, tempLowThreshold: parseInt(e.target.value) || 0})}
+                    className="w-full p-2 rounded-lg border border-gray-300"
+                  />
+               </div>
+            </div>
+          </div>
+
+           {/* 倒数日设置 */}
+           <div className="space-y-4 border-t border-gray-100 pt-4">
+            <h3 className="font-medium text-gray-900 flex items-center gap-2">
+              <Calendar size={18} /> 倒数日事件
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div>
+                  <label className="block text-sm text-gray-600 mb-1">事件名称</label>
+                  <input 
+                    type="text" 
+                    value={targetName}
+                    onChange={(e) => setTargetName(e.target.value)}
+                    className="w-full p-2 rounded-lg border border-gray-300"
+                  />
+               </div>
+               <div>
+                  <label className="block text-sm text-gray-600 mb-1">目标日期</label>
+                  <input 
+                    type="date" 
+                    value={targetDate}
+                    onChange={(e) => setTargetDate(e.target.value)}
+                    className="w-full p-2 rounded-lg border border-gray-300"
+                  />
+               </div>
+            </div>
+          </div>
+
+          <div className="pt-4">
+            <Button onClick={onSave} disabled={loading} className="w-full justify-center">
+              {loading ? "保存中..." : "保存所有设置"} <Save size={18} />
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
+  </div>
+);
+
+const AboutPage = () => (
+  <div className="max-w-2xl mx-auto animate-fade-in">
+    <Card>
+      <h1 className="text-3xl font-bold text-gray-800 mb-4">关于本站</h1>
+      <div className="prose text-gray-600 space-y-4">
+        <p>
+          这是一个基于 <strong>React + Firebase + GitHub Pages</strong> 构建的个人智能仪表盘。
+        </p>
+        <ul className="list-disc pl-5 space-y-2">
+          <li>前端使用 React 构建，界面采用 Tailwind CSS 设计。</li>
+          <li>数据存储在 Google Firebase (Firestore) 中，实现实时同步。</li>
+          <li>
+            <strong>GitHub Actions 自动化：</strong> 
+            后台每天会自动运行脚本，读取你的设置。如果明天气温超过你在设置页面设定的阈值，或者距离倒数日还有3天，系统会自动向你的邮箱发送提醒。
+          </li>
+        </ul>
+        <div className="mt-8 p-4 bg-gray-100 rounded-xl">
+          <h3 className="font-bold text-gray-800 mb-2">项目状态</h3>
+          <div className="flex items-center gap-2 text-green-600">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+            系统运行正常
+          </div>
+        </div>
+      </div>
+    </Card>
+  </div>
+);
+
 // --- 主应用组件 ---
 
 export default function App() {
@@ -94,10 +332,9 @@ export default function App() {
   const [weather, setWeather] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
   const [newAnnouncement, setNewAnnouncement] = useState("");
-  const [targetDate, setTargetDate] = useState("2025-01-01"); // 默认倒数日
+  const [targetDate, setTargetDate] = useState("2025-01-01"); 
   const [targetName, setTargetName] = useState("新年");
   
-  // 用户设置状态
   const [settings, setSettings] = useState({
     city: "Beijing",
     tempHighThreshold: 30,
@@ -107,7 +344,6 @@ export default function App() {
   });
   const [loadingSettings, setLoadingSettings] = useState(false);
 
-  // 监听登录状态
   useEffect(() => {
     if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -119,7 +355,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 监听公告数据 (实时更新)
   useEffect(() => {
     if (!db) return;
     const q = query(collection(db, "announcements"), orderBy("createdAt", "desc"), limit(5));
@@ -127,8 +362,6 @@ export default function App() {
       const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setAnnouncements(posts);
     }, (error) => {
-      console.log("Fetching announcements failed (expected if not configured):", error);
-      // 演示数据
       setAnnouncements([
         { id: 1, text: "欢迎来到你的个人仪表盘！请配置 Firebase 以启用实时功能。", createdAt: { seconds: Date.now() / 1000 } },
         { id: 2, text: "今天记得带伞，可能会有雨。", createdAt: { seconds: (Date.now() - 86400000) / 1000 } }
@@ -137,11 +370,8 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 获取天气 (使用 Open-Meteo 免费 API，无需 Key)
   useEffect(() => {
     const fetchWeather = async () => {
-      // 这里简化处理，实际应根据 Settings 中的城市获取经纬度
-      // 默认为北京经纬度
       try {
         const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=39.9042&longitude=116.4074&current=temperature_2m,relative_humidity_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai");
         const data = await res.json();
@@ -153,7 +383,6 @@ export default function App() {
     fetchWeather();
   }, [settings.city]);
 
-  // Firestore 操作
   const handleLogin = async () => {
     if (!auth) { alert("请先在代码中配置 Firebase!"); return; }
     const provider = new GoogleAuthProvider();
@@ -209,7 +438,6 @@ export default function App() {
     if (!user || !db) return;
     setLoadingSettings(true);
     try {
-      // 保存用户特定的设置，这些设置将被 GitHub Actions 读取
       await setDoc(doc(db, "users", user.uid), {
         ...settings,
         targetDate,
@@ -224,260 +452,11 @@ export default function App() {
     }
   };
 
-  // 倒数日计算
   const calculateDaysLeft = () => {
     const diff = new Date(targetDate) - new Date();
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
     return days > 0 ? days : 0;
   };
-
-  // --- 渲染页面组件 ---
-
-  const Dashboard = () => (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
-      {/* 左侧栏：天气与倒数日 */}
-      <div className="space-y-6">
-        {/* 天气卡片 */}
-        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="text-blue-100 font-medium flex items-center gap-2">
-                <CloudRain size={18} /> 今日天气
-              </h3>
-              <p className="text-xs text-blue-200 mt-1">{settings.city}</p>
-            </div>
-            <div className="text-4xl font-bold">
-              {weather ? Math.round(weather.current.temperature_2m) : "--"}°
-            </div>
-          </div>
-          <div className="mt-6 flex justify-between text-sm text-blue-100">
-            <span>最高: {weather ? weather.daily.temperature_2m_max[0] : "--"}°</span>
-            <span>最低: {weather ? weather.daily.temperature_2m_min[0] : "--"}°</span>
-          </div>
-        </Card>
-
-        {/* 倒数日卡片 */}
-        <Card className="bg-gradient-to-br from-purple-500 to-pink-600 text-white border-none">
-           <div className="flex justify-between items-center">
-             <h3 className="text-purple-100 font-medium flex items-center gap-2">
-               <Calendar size={18} /> {targetName}
-             </h3>
-             <span className="text-xs bg-white/20 px-2 py-1 rounded text-white">目标日</span>
-           </div>
-           <div className="mt-4 text-center">
-             <span className="text-5xl font-bold">{calculateDaysLeft()}</span>
-             <span className="ml-2 text-purple-200">天</span>
-           </div>
-           <div className="mt-4 text-xs text-center text-purple-200">
-             {targetDate}
-           </div>
-        </Card>
-      </div>
-
-      {/* 中间与右侧：公告板 */}
-      <div className="md:col-span-2">
-        <Card className="h-full flex flex-col">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Bell className="text-blue-500" /> 公告栏
-            </h2>
-            {user && (
-              <span className="text-xs text-gray-400">作为 {user.displayName} 登录</span>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-            {announcements.map((ann) => (
-              <div key={ann.id} className="group p-4 rounded-xl bg-gray-50 hover:bg-blue-50 transition-colors border border-gray-100">
-                <div className="flex justify-between items-start">
-                  <p className="text-gray-700 whitespace-pre-wrap">{ann.text}</p>
-                  {user && ann.uid === user.uid && (
-                    <button 
-                      onClick={() => deleteAnnouncement(ann.id)}
-                      className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-                <div className="mt-2 flex justify-between items-center">
-                  <span className="text-xs text-gray-400">
-                    {ann.createdAt?.seconds ? new Date(ann.createdAt.seconds * 1000).toLocaleDateString() : '刚刚'}
-                  </span>
-                  {ann.author && <span className="text-xs font-medium text-blue-500">@{ann.author}</span>}
-                </div>
-              </div>
-            ))}
-            {announcements.length === 0 && (
-              <div className="text-center text-gray-400 py-10">暂无公告</div>
-            )}
-          </div>
-
-          {/* 发布框 */}
-          {user ? (
-            <div className="mt-6 pt-4 border-t border-gray-100">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newAnnouncement}
-                  onChange={(e) => setNewAnnouncement(e.target.value)}
-                  placeholder="发布新动态..."
-                  className="flex-1 bg-gray-100 border-none rounded-xl px-4 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                  onKeyDown={(e) => e.key === 'Enter' && postAnnouncement()}
-                />
-                <Button onClick={postAnnouncement}>
-                  <Plus size={20} />
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="mt-6 pt-4 border-t border-gray-100 text-center">
-              <Button variant="secondary" onClick={handleLogin} className="w-full justify-center">
-                登录以发布公告
-              </Button>
-            </div>
-          )}
-        </Card>
-      </div>
-    </div>
-  );
-
-  const SettingsPage = () => (
-    <div className="max-w-2xl mx-auto animate-fade-in">
-      <Card>
-        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <Settings className="text-blue-500" /> 自动化设置
-        </h2>
-        
-        {!user ? (
-           <div className="text-center py-10">
-             <p className="text-gray-500 mb-4">请先登录以同步您的偏好设置到云端。</p>
-             <Button onClick={handleLogin} className="mx-auto">立即登录</Button>
-           </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="bg-blue-50 p-4 rounded-xl text-sm text-blue-700 flex gap-2">
-              <Info className="shrink-0" size={18} />
-              此处保存的设置将用于 GitHub Actions 每日邮件推送。
-            </div>
-
-            {/* 基本信息 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">所在城市 (Pinyin)</label>
-                <input 
-                  type="text" 
-                  value={settings.city}
-                  onChange={(e) => setSettings({...settings, city: e.target.value})}
-                  className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">接收邮箱</label>
-                <input 
-                  type="email" 
-                  value={settings.emailAddress}
-                  placeholder="example@gmail.com"
-                  onChange={(e) => setSettings({...settings, emailAddress: e.target.value})}
-                  className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-              </div>
-            </div>
-
-            {/* 阈值设置 */}
-            <div className="space-y-4 border-t border-gray-100 pt-4">
-              <h3 className="font-medium text-gray-900 flex items-center gap-2">
-                <Thermometer size={18} /> 温度预警阈值
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <div>
-                    <label className="block text-sm text-gray-600 mb-1">高温提醒 (&gt; X°C)</label>
-                    <input 
-                      type="number" 
-                      value={settings.tempHighThreshold}
-                      onChange={(e) => setSettings({...settings, tempHighThreshold: parseInt(e.target.value)})}
-                      className="w-full p-2 rounded-lg border border-gray-300"
-                    />
-                 </div>
-                 <div>
-                    <label className="block text-sm text-gray-600 mb-1">低温提醒 (&lt; X°C)</label>
-                    <input 
-                      type="number" 
-                      value={settings.tempLowThreshold}
-                      onChange={(e) => setSettings({...settings, tempLowThreshold: parseInt(e.target.value)})}
-                      className="w-full p-2 rounded-lg border border-gray-300"
-                    />
-                 </div>
-              </div>
-            </div>
-
-             {/* 倒数日设置 */}
-             <div className="space-y-4 border-t border-gray-100 pt-4">
-              <h3 className="font-medium text-gray-900 flex items-center gap-2">
-                <Calendar size={18} /> 倒数日事件
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <div>
-                    <label className="block text-sm text-gray-600 mb-1">事件名称</label>
-                    <input 
-                      type="text" 
-                      value={targetName}
-                      onChange={(e) => setTargetName(e.target.value)}
-                      className="w-full p-2 rounded-lg border border-gray-300"
-                    />
-                 </div>
-                 <div>
-                    <label className="block text-sm text-gray-600 mb-1">目标日期</label>
-                    <input 
-                      type="date" 
-                      value={targetDate}
-                      onChange={(e) => setTargetDate(e.target.value)}
-                      className="w-full p-2 rounded-lg border border-gray-300"
-                    />
-                 </div>
-              </div>
-            </div>
-
-            <div className="pt-4">
-              <Button onClick={saveSettings} disabled={loadingSettings} className="w-full justify-center">
-                {loadingSettings ? "保存中..." : "保存所有设置"} <Save size={18} />
-              </Button>
-            </div>
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-
-  const AboutPage = () => (
-    <div className="max-w-2xl mx-auto animate-fade-in">
-      <Card>
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">关于本站</h1>
-        <div className="prose text-gray-600 space-y-4">
-          <p>
-            这是一个基于 <strong>React + Firebase + GitHub Pages</strong> 构建的个人智能仪表盘。
-          </p>
-          <ul className="list-disc pl-5 space-y-2">
-            <li>前端使用 React 构建，界面采用 Tailwind CSS 设计。</li>
-            <li>数据存储在 Google Firebase (Firestore) 中，实现实时同步。</li>
-            <li>
-              <strong>GitHub Actions 自动化：</strong> 
-              后台每天会自动运行脚本，读取你的设置。如果明天气温超过你在设置页面设定的阈值，或者距离倒数日还有3天，系统会自动向你的邮箱发送提醒。
-            </li>
-          </ul>
-          <div className="mt-8 p-4 bg-gray-100 rounded-xl">
-            <h3 className="font-bold text-gray-800 mb-2">项目状态</h3>
-            <div className="flex items-center gap-2 text-green-600">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-              系统运行正常
-            </div>
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
-
-  // --- 主布局 ---
 
   return (
     <div className="min-h-screen bg-[#f3f4f6] text-gray-800 font-sans selection:bg-blue-200">
@@ -552,8 +531,32 @@ export default function App() {
 
       {/* 页面内容 */}
       <main className="max-w-6xl mx-auto p-4 md:p-6 mt-4 mb-10">
-        {activeTab === 'dashboard' && <Dashboard />}
-        {activeTab === 'settings' && <SettingsPage />}
+        {activeTab === 'dashboard' && <Dashboard 
+          weather={weather} 
+          settings={settings} 
+          targetName={targetName}
+          daysLeft={calculateDaysLeft()}
+          targetDate={targetDate}
+          announcements={announcements}
+          user={user}
+          onDelete={deleteAnnouncement}
+          onPost={postAnnouncement}
+          newAnnouncement={newAnnouncement}
+          setNewAnnouncement={setNewAnnouncement}
+          onLogin={handleLogin}
+        />}
+        {activeTab === 'settings' && <SettingsPage 
+          user={user}
+          onLogin={handleLogin}
+          settings={settings}
+          setSettings={setSettings}
+          targetName={targetName}
+          setTargetName={setTargetName}
+          targetDate={targetDate}
+          setTargetDate={setTargetDate}
+          onSave={saveSettings}
+          loading={loadingSettings}
+        />}
         {activeTab === 'about' && <AboutPage />}
       </main>
     </div>
