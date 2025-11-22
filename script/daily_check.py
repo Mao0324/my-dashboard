@@ -3,6 +3,7 @@ import datetime
 import smtplib
 from email.mime.text import MIMEText
 from email.header import Header
+from email.utils import formataddr
 import requests
 import firebase_admin
 from firebase_admin import credentials
@@ -11,25 +12,32 @@ from firebase_admin import firestore
 # --- 1. 配置初始化 ---
 
 # 从环境变量获取敏感信息 (在 GitHub Secrets 中设置)
-FIREBASE_CREDENTIALS = os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY") # JSON 字符串
+FIREBASE_CREDENTIALS = os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY")
 
-# --- 修改：QQ邮箱配置 ---
+# --- QQ邮箱配置 ---
 EMAIL_HOST = "smtp.qq.com" 
-EMAIL_PORT = 465 # QQ邮箱通常使用 SSL 端口 465
-EMAIL_USER = os.environ.get("EMAIL_USER") # 你的QQ邮箱 (例如 123456@qq.com)
-EMAIL_PASS = os.environ.get("EMAIL_PASS") # 注意：这里填QQ邮箱的“授权码”！
+EMAIL_PORT = 465 # QQ邮箱使用 SSL 端口
+EMAIL_USER = os.environ.get("EMAIL_USER") # 你的QQ邮箱
+EMAIL_PASS = os.environ.get("EMAIL_PASS") # 你的QQ邮箱授权码
 
 # 初始化 Firebase
 if not firebase_admin._apps:
     if FIREBASE_CREDENTIALS:
-        import json
-        cred_dict = json.loads(FIREBASE_CREDENTIALS)
-        cred = credentials.Certificate(cred_dict)
-        firebase_admin.initialize_app(cred)
+        try:
+            import json
+            cred_dict = json.loads(FIREBASE_CREDENTIALS)
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+        except Exception as e:
+            print(f"Firebase 初始化失败: {e}")
     else:
         print("警告: 未找到 FIREBASE_SERVICE_ACCOUNT_KEY 环境变量")
 
-db = firestore.client()
+# 获取数据库客户端
+try:
+    db = firestore.client()
+except:
+    db = None
 
 # --- 2. 辅助函数 ---
 
@@ -38,21 +46,21 @@ def send_email(to_addr, subject, content):
         print("没有收件人邮箱，跳过发送。")
         return
 
+    if not EMAIL_USER or not EMAIL_PASS:
+        print("没有配置发件人邮箱或授权码，跳过发送。")
+        return
+
     message = MIMEText(content, 'plain', 'utf-8')
-    message['From'] = Header(f"MyDashboard <{EMAIL_USER}>", 'utf-8')
-    message['To'] = Header(to_addr, 'utf-8')
+    
+    # --- 关键修改：使用标准的 formataddr ---
+    # QQ邮箱严格校验 From 头，必须包含登录的邮箱地址
+    message['From'] = formataddr(["MyDashboard Bot", EMAIL_USER])
+    message['To'] = to_addr
     message['Subject'] = Header(subject, 'utf-8')
 
     try:
-        # --- 修改：根据端口判断连接方式 ---
-        if EMAIL_PORT == 465:
-            # QQ邮箱推荐使用 SSL
-            server = smtplib.SMTP_SSL(EMAIL_HOST, EMAIL_PORT)
-        else:
-            # 其他邮箱可能使用 TLS
-            server = smtplib.SMTP(EMAIL_HOST, EMAIL_PORT)
-            server.starttls()
-            
+        # QQ邮箱推荐使用 SSL
+        server = smtplib.SMTP_SSL(EMAIL_HOST, EMAIL_PORT)
         server.login(EMAIL_USER, EMAIL_PASS)
         server.sendmail(EMAIL_USER, to_addr, message.as_string())
         server.quit()
@@ -61,7 +69,7 @@ def send_email(to_addr, subject, content):
         print(f"发送邮件失败: {e}")
 
 def check_weather(lat, lon):
-    # 使用 Open-Meteo API
+    # 使用 Open-Meteo API (无需 Key)
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto"
     try:
         res = requests.get(url).json()
@@ -74,8 +82,11 @@ def check_weather(lat, lon):
 def main():
     print("开始执行每日检查任务...")
     
+    if not db:
+        print("无法连接数据库，任务终止。")
+        return
+
     try:
-        # 获取所有用户设置
         users_ref = db.collection("users")
         docs = users_ref.stream()
 
@@ -83,7 +94,10 @@ def main():
             user_data = doc.to_dict()
             email = user_data.get("emailAddress")
             
-            # 默认阈值
+            # 如果用户没填邮箱，直接跳过
+            if not email:
+                continue
+
             high_temp_limit = user_data.get("tempHighThreshold", 35)
             low_temp_limit = user_data.get("tempLowThreshold", 5)
             
@@ -98,21 +112,24 @@ def main():
                     today = datetime.date.today()
                     days_left = (target_date - today).days
                     
+                    # 这里设置提醒规则：剩余3天或1天时提醒
                     if days_left == 3:
                         alerts.append(f"📅 倒数提醒：距离【{target_name}】还剩 3 天！")
                     elif days_left == 1:
                         alerts.append(f"📅 倒数提醒：【{target_name}】就在明天！")
+                    elif days_left == 0:
+                        alerts.append(f"📅 就在今天！【{target_name}】")
                 except ValueError:
                     pass
 
             # --- B. 检查天气 ---
-            # 这里固定使用 Beijing 坐标演示
+            # 默认为北京坐标 (可扩展为根据 city 查询经纬度)
             lat, lon = 39.9042, 116.4074 
             weather_data = check_weather(lat, lon)
 
             if weather_data:
-                # 检查明天的天气 (索引 1)
                 try:
+                    # 检查明天的天气 (索引 1)
                     tomorrow_max = weather_data['temperature_2m_max'][1]
                     tomorrow_min = weather_data['temperature_2m_min'][1]
                     tomorrow_rain = weather_data['precipitation_sum'][1]
@@ -128,8 +145,9 @@ def main():
                 except IndexError:
                     pass
 
-            # --- C. 发送汇总邮件 ---
-            if alerts and email:
+            # --- C. 发送邮件 ---
+            # 只有在有警报内容时才发送
+            if alerts:
                 content = "您好，这是您的每日智能助理提醒：\n\n" + "\n".join(alerts)
                 send_email(email, "【重要】明日天气与日程提醒", content)
             else:
