@@ -117,7 +117,7 @@ const AuthModal = ({ isOpen, onClose, onGoogleLogin }) => {
   const [password, setPassword] = useState("");
   const [name, setName] = useState(""); // 注册时用
   const [error, setError] = useState("");
-  const [loading,HZ] = useState(false);
+  const [loading, setLoading] = useState(false); // 修正了这里的变量名
 
   if (!isOpen) return null;
 
