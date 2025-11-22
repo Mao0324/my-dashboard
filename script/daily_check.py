@@ -51,15 +51,11 @@ def send_email(to_addr, subject, content):
         return
 
     message = MIMEText(content, 'plain', 'utf-8')
-    
-    # --- 关键修改：使用标准的 formataddr ---
-    # QQ邮箱严格校验 From 头，必须包含登录的邮箱地址
     message['From'] = formataddr(["MyDashboard Bot", EMAIL_USER])
     message['To'] = to_addr
     message['Subject'] = Header(subject, 'utf-8')
 
     try:
-        # QQ邮箱推荐使用 SSL
         server = smtplib.SMTP_SSL(EMAIL_HOST, EMAIL_PORT)
         server.login(EMAIL_USER, EMAIL_PASS)
         server.sendmail(EMAIL_USER, to_addr, message.as_string())
@@ -69,7 +65,9 @@ def send_email(to_addr, subject, content):
         print(f"发送邮件失败: {e}")
 
 def check_weather(lat, lon):
-    # 使用 Open-Meteo API (无需 Key)
+    if not lat or not lon:
+        return None
+    # 使用 Open-Meteo API
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto"
     try:
         res = requests.get(url).json()
@@ -94,7 +92,6 @@ def main():
             user_data = doc.to_dict()
             email = user_data.get("emailAddress")
             
-            # 如果用户没填邮箱，直接跳过
             if not email:
                 continue
 
@@ -103,50 +100,67 @@ def main():
             
             alerts = []
 
-            # --- A. 检查倒数日 ---
-            target_date_str = user_data.get("targetDate")
-            target_name = user_data.get("targetName", "重要日子")
-            if target_date_str:
-                try:
-                    target_date = datetime.datetime.strptime(target_date_str, "%Y-%m-%d").date()
-                    today = datetime.date.today()
-                    days_left = (target_date - today).days
-                    
-                    # 这里设置提醒规则：剩余3天或1天时提醒
-                    if days_left == 3:
-                        alerts.append(f"📅 倒数提醒：距离【{target_name}】还剩 3 天！")
-                    elif days_left == 1:
-                        alerts.append(f"📅 倒数提醒：【{target_name}】就在明天！")
-                    elif days_left == 0:
-                        alerts.append(f"📅 就在今天！【{target_name}】")
-                except ValueError:
-                    pass
+            # --- A. 检查倒数日 (支持多事件) ---
+            events = user_data.get("events", [])
+            
+            # 兼容旧格式: 如果没有events数组但有targetDate
+            if not events and user_data.get("targetDate"):
+                events = [{
+                    "name": user_data.get("targetName", "重要日子"),
+                    "date": user_data.get("targetDate")
+                }]
 
-            # --- B. 检查天气 ---
-            # 默认为北京坐标 (可扩展为根据 city 查询经纬度)
-            lat, lon = 39.9042, 116.4074 
+            today = datetime.date.today()
+
+            for event in events:
+                date_str = event.get("date")
+                name = event.get("name", "未命名事件")
+                
+                if date_str:
+                    try:
+                        target_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+                        days_left = (target_date - today).days
+                        
+                        # 提醒逻辑
+                        if days_left == 3:
+                            alerts.append(f"📅 倒数提醒：距离【{name}】还剩 3 天！")
+                        elif days_left == 1:
+                            alerts.append(f"📅 倒数提醒：【{name}】就在明天！")
+                        elif days_left == 0:
+                            alerts.append(f"📅 就在今天！【{name}】")
+                    except ValueError:
+                        continue
+
+            # --- B. 检查天气 (动态坐标) ---
+            lat = user_data.get("latitude")
+            lon = user_data.get("longitude")
+            city_name = user_data.get("city", "Unknown City")
+            
+            # 如果用户还没保存过新版设置，默认使用北京坐标
+            if not lat or not lon:
+                 lat, lon = 39.9042, 116.4074
+
             weather_data = check_weather(lat, lon)
 
             if weather_data:
                 try:
-                    # 检查明天的天气 (索引 1)
+                    # 检查明天的天气
                     tomorrow_max = weather_data['temperature_2m_max'][1]
                     tomorrow_min = weather_data['temperature_2m_min'][1]
                     tomorrow_rain = weather_data['precipitation_sum'][1]
 
                     if tomorrow_max > high_temp_limit:
-                        alerts.append(f"🔥 高温预警：明日最高温 {tomorrow_max}°C，超过设定阈值。")
+                        alerts.append(f"🔥 高温预警 ({city_name})：明日最高温 {tomorrow_max}°C，超过设定阈值。")
                     
                     if tomorrow_min < low_temp_limit:
-                        alerts.append(f"❄️ 降温预警：明日最低温 {tomorrow_min}°C，请注意保暖。")
+                        alerts.append(f"❄️ 降温预警 ({city_name})：明日最低温 {tomorrow_min}°C，请注意保暖。")
                     
                     if tomorrow_rain > 0:
-                        alerts.append(f"☔ 雨天提醒：明日预计有降雨 ({tomorrow_rain}mm)，记得带伞。")
-                except IndexError:
+                        alerts.append(f"☔ 雨天提醒 ({city_name})：明日预计有降雨 ({tomorrow_rain}mm)，记得带伞。")
+                except (IndexError, KeyError, TypeError):
                     pass
 
             # --- C. 发送邮件 ---
-            # 只有在有警报内容时才发送
             if alerts:
                 content = "您好，这是您的每日智能助理提醒：\n\n" + "\n".join(alerts)
                 send_email(email, "【重要】明日天气与日程提醒", content)
