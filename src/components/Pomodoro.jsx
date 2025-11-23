@@ -145,41 +145,46 @@ const Pomodoro = ({ state, setState, userEmail }) => {
       
       {/* 时间显示 */}
       <div className="text-center mb-6 relative z-10">
-        <div className="text-5xl font-bold tracking-wider font-mono drop-shadow-sm">
+        <div className="text-6xl font-bold tracking-wider font-mono drop-shadow-sm">
           {formatTime(state.timeLeft)}
         </div>
       </div>
 
       {/* 控制按钮 */}
-      <div className="flex justify-center gap-4 relative z-10">
+      <div className="flex justify-center items-center gap-6 relative z-10">
+        {/* 修复说明：
+            1. 增加 w-16 h-16 尺寸，使按钮更大更易点击。
+            2. 使用 !text-orange-500 / !text-teal-500 强制覆盖 Button 组件默认的 text-white，
+               解决“白色背景+白色文字”导致的图标不可见问题。
+        */}
         <Button 
           onClick={toggleTimer} 
-          className="bg-white text-gray-800 hover:bg-gray-100 border-none w-12 h-12 !p-0 rounded-full shadow-lg transition-transform hover:scale-105 active:scale-95"
+          className={`bg-white hover:bg-gray-50 border-none w-16 h-16 !p-0 rounded-2xl shadow-xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center ${state.mode === 'focus' ? '!text-orange-500' : '!text-teal-500'}`}
         >
-          {state.isActive ? <Pause fill="currentColor" size={20} /> : <Play fill="currentColor" className="ml-1" size={20} />}
+          {state.isActive ? <Pause fill="currentColor" size={28} /> : <Play fill="currentColor" className="ml-1" size={28} />}
         </Button>
         
-        <div className="flex gap-2 bg-black/10 rounded-full p-1">
+        <div className="flex gap-2 bg-black/20 rounded-2xl p-1.5 backdrop-blur-sm">
              <button 
                 onClick={() => resetTimer('focus')}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${state.mode === 'focus' ? 'bg-white/20 text-white shadow-inner' : 'text-white/60 hover:bg-white/10'}`}
+                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${state.mode === 'focus' ? 'bg-white text-orange-500 shadow-sm' : 'text-white/70 hover:bg-white/10'}`}
                 title="切换到专注"
              >
-                <Briefcase size={16} />
+                <Briefcase size={18} />
              </button>
              <button 
                 onClick={() => resetTimer('break')}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${state.mode === 'break' ? 'bg-white/20 text-white shadow-inner' : 'text-white/60 hover:bg-white/10'}`}
+                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${state.mode === 'break' ? 'bg-white text-teal-500 shadow-sm' : 'text-white/70 hover:bg-white/10'}`}
                 title="切换到休息"
              >
-                <Coffee size={16} />
+                <Coffee size={18} />
              </button>
              <button 
                onClick={() => resetTimer(state.mode)} 
-               className="w-10 h-10 rounded-full flex items-center justify-center text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+               className="w-10 h-10 rounded-xl flex items-center justify-center text-white/70 hover:bg-white/10 hover:text-white transition-colors"
                title="重置当前计时"
              >
-              <RotateCcw size={16} />
+              <RotateCcw size={18} />
             </button>
         </div>
       </div>
