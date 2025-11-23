@@ -150,7 +150,8 @@ export default function App() {
       let { latitude: lat, longitude: lon } = settings;
       if (!lat || !lon) { lat = 39.9042; lon = 116.4074; }
       try {
-        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`);
+        // 修改：增加 is_day 参数
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`);
         setWeather(await res.json());
       } catch (e) { console.error("天气获取失败", e); }
     };

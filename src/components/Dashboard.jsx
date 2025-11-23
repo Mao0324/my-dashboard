@@ -1,9 +1,10 @@
 import React from 'react';
-import { CloudRain, MapPin, Calendar, Bell, Trash2, Plus } from "lucide-react";
+import { MapPin, Calendar, Bell, Trash2, Plus } from "lucide-react"; // 移除了 CloudRain，因为 3D 场景自带显示
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import Pomodoro from './Pomodoro';
 import DailyQuote from './DailyQuote';
+import WeatherScene3D from './WeatherScene3D'; // 引入新组件
 
 const Dashboard = ({ 
   weather, 
@@ -15,8 +16,8 @@ const Dashboard = ({
   newAnnouncement, 
   setNewAnnouncement, 
   onOpenAuth,
-  pomoState, // 接收 App 传下来的状态
-  setPomoState // 接收 App 传下来的 setter
+  pomoState, 
+  setPomoState 
 }) => {
   
   const calculateDaysLeft = (dateStr) => {
@@ -31,32 +32,21 @@ const Dashboard = ({
       
       {/* ---kv 左侧列：工具类 --- */}
       <div className="space-y-6">
-        {/* 天气卡片 */}
-        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="text-blue-100 font-medium flex items-center gap-2">
-                <CloudRain size={18} /> 今日天气
-              </h3>
-              <p className="text-xs text-blue-200 mt-1 flex items-center gap-1">
-                <MapPin size={12}/> {settings.city}
-              </p>
-            </div>
-            <div className="text-4xl font-bold">
-              {weather ? Math.round(weather.current.temperature_2m) : "--"}°
-            </div>
-          </div>
-          <div className="mt-6 flex justify-between text-sm text-blue-100">
-            <span>最高: {weather ? weather.daily.temperature_2m_max[0] : "--"}°</span>
-            <span>最低: {weather ? weather.daily.temperature_2m_min[0] : "--"}°</span>
-          </div>
-        </Card>
+        {/* 3D 天气场景：替换了原来的纯文本 Card */}
+        {/* 我们可以给它一个特殊的容器样式，去掉默认 Card 的 padding 以便全屏显示 canvas */}
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 overflow-hidden h-64 lg:h-72">
+           <WeatherScene3D weather={weather} pomoState={pomoState} />
+           {/* 简单的城市显示覆盖层 */}
+           <div className="absolute top-4 right-4 z-10 bg-black/20 backdrop-blur-sm px-2 py-1 rounded-lg text-white text-xs flex items-center gap-1">
+             <MapPin size={10} /> {settings.city}
+           </div>
+        </div>
 
-        {/* 番茄钟：现在是受控组件，状态由 App 管理 */}
+        {/* 番茄钟 */}
         <Pomodoro 
            state={pomoState} 
            setState={setPomoState}
-           userEmail={settings.emailAddress} // 用于提示用户将发送邮件到哪里
+           userEmail={settings.emailAddress} 
         />
       </div>
 
