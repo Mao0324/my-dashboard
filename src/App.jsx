@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, limit, doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
@@ -58,6 +58,16 @@ export default function App() {
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [bgImage, setBgImage] = useState("");
 
+  // --- 番茄钟状态 (提升到 App 层级以保持持久化) ---
+  const [pomoState, setPomoState] = useState({
+    timeLeft: 25 * 60,
+    isActive: false,
+    mode: 'focus', // 'focus' | 'break'
+    eventName: "专注任务",
+    focusDuration: 25, // minutes
+    breakDuration: 5,   // minutes
+  });
+
   // 默认设置
   const [settings, setSettings] = useState({
     city: "Beijing",
@@ -90,6 +100,54 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // --- 番茄钟计时逻辑 (放在 App 中，切换 Tab 不会断) ---
+  useEffect(() => {
+    let interval = null;
+    
+    // 计时结束处理
+    const handleTimerComplete = async () => {
+      // 1. 停止计时
+      setPomoState(prev => ({ ...prev, isActive: false }));
+
+      // 2. 浏览器通知
+      if (Notification.permission === 'granted') {
+        new Notification(`${pomoState.mode === 'focus' ? '专注' : '休息'}结束`, {
+          body: `【${pomoState.eventName}】时间到了！`
+        });
+      } else if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+
+      // 3. 写入邮件队列 (Firebase Firestore)
+      // 注意：这需要后端脚本(daily_check.py)或云函数监听 mail_queue 集合来实际发送邮件
+      if (user && db && settings.emailAddress) {
+        try {
+          await addDoc(collection(db, "mail_queue"), {
+            to: settings.emailAddress,
+            subject: `[番茄钟] ${pomoState.eventName} 完成提醒`,
+            content: `您好，您的番茄钟【${pomoState.eventName}】(${pomoState.mode === 'focus' ? '专注' : '休息'}) 已于 ${new Date().toLocaleString()} 结束。请注意休息或开始下一项工作。`,
+            createdAt: new Date(),
+            status: 'pending' // pending -> sent
+          });
+          console.log("邮件发送请求已加入队列");
+        } catch (e) {
+          console.error("写入邮件队列失败:", e);
+        }
+      }
+    };
+
+    if (pomoState.isActive && pomoState.timeLeft > 0) {
+      interval = setInterval(() => {
+        setPomoState(prev => ({ ...prev, timeLeft: prev.timeLeft - 1 }));
+      }, 1000);
+    } else if (pomoState.timeLeft === 0 && pomoState.isActive) {
+      handleTimerComplete();
+    }
+
+    return () => clearInterval(interval);
+  }, [pomoState.isActive, pomoState.timeLeft, pomoState.mode, pomoState.eventName, user, settings.emailAddress]);
+
 
   // 获取天气
   useEffect(() => {
@@ -133,7 +191,6 @@ export default function App() {
     const docSnap = await getDoc(doc(db, "users", uid));
     if (docSnap.exists()) {
       const data = docSnap.data();
-      // 兼容旧数据
       if (!data.events && data.targetDate) data.events = [{ name: data.targetName || "目标日", date: data.targetDate }];
       setSettings(prev => ({ ...prev, ...data }));
     }
@@ -211,6 +268,8 @@ export default function App() {
             user={user} onDelete={deleteAnnouncement} onPost={postAnnouncement}
             newAnnouncement={newAnnouncement} setNewAnnouncement={setNewAnnouncement}
             onOpenAuth={() => setShowAuthModal(true)}
+            // 传递番茄钟状态和控制函数
+            pomoState={pomoState} setPomoState={setPomoState}
           />}
           {activeTab === 'settings' && <SettingsPage 
             user={user} onOpenAuth={() => setShowAuthModal(true)}

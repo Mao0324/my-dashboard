@@ -1,5 +1,5 @@
 import React from 'react';
-import { CloudRain, MapPin, Calendar, Bell, Trash2, Plus } from 'lucide-react';
+import { CloudRain, MapPin, Calendar,QlRain, Bell, Trash2, Plus } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import Pomodoro from './Pomodoro';
@@ -14,7 +14,9 @@ const Dashboard = ({
   onPost, 
   newAnnouncement, 
   setNewAnnouncement, 
-  onOpenAuth 
+  onOpenAuth,
+  pomoState, // 接收 App 传下来的状态
+  setPomoState // 接收 App 传下来的 setter
 }) => {
   
   const calculateDaysLeft = (dateStr) => {
@@ -27,7 +29,7 @@ const Dashboard = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
       
-      {/* --- 左侧列：工具类 --- */}
+      {/* ---kv 左侧列：工具类 --- */}
       <div className="space-y-6">
         {/* 天气卡片 */}
         <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none">
@@ -50,8 +52,12 @@ const Dashboard = ({
           </div>
         </Card>
 
-        {/* 新增：番茄钟 */}
-        <Pomodoro />
+        {/* 番茄钟：现在是受控组件，状态由 App 管理 */}
+        <Pomodoro 
+           state={pomoState} 
+           setState={setPomoState}
+           userEmail={settings.emailAddress} // 用于提示用户将发送邮件到哪里
+        />
       </div>
 
       {/* --- 中间列：信息类 --- */}
