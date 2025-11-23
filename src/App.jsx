@@ -6,14 +6,14 @@ import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, limit, do
 import { Sun, Settings, Info, LogOut, LogIn, BookOpen } from 'lucide-react';
 
 // 引入拆分后的组件
-import Dashboard from './components/Dashboard.jsx';
-import SettingsPage from './components/SettingsPage.jsx';
-import AuthModal from './components/AuthModal.jsx';
-import BlogPage from './components/BlogPage.jsx';
-import { Button } from './components/ui/Button.jsx';
-import { Card } from './components/ui/Card.jsx';
-import AIAssistant from './components/AIAssistant.jsx'; 
-import { EventStreamCursor } from './components/IdentityWidgets.jsx'; // 引入事件流光标
+import Dashboard from './components/Dashboard';
+import SettingsPage from './components/SettingsPage';
+import AuthModal from './components/AuthModal';
+import BlogPage from './components/BlogPage';
+import { Button } from './components/ui/Button';
+import { Card } from './components/ui/Card';
+import AIAssistant from './components/AIAssistant'; 
+import { EventStreamCursor } from './components/IdentityWidgets'; // 引入事件流光标
 
 // ... existing Firebase Config and Init ...
 const firebaseConfig = {
