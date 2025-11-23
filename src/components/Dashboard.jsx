@@ -1,13 +1,13 @@
 import React from 'react';
 import { MapPin, Calendar, Bell, Trash2, Plus } from "lucide-react"; 
-// 修复：显式添加 .jsx 后缀，确保构建工具能正确解析
-import { Card } from './ui/Card.jsx'; 
-import { Button } from './ui/Button.jsx'; 
-import Pomodoro from './Pomodoro.jsx';
-import DailyQuote from './DailyQuote.jsx';
-import WeatherScene3D from './WeatherScene3D.jsx';
-// 修复：显式添加 .jsx 后缀
-import { EventStreamCursor, LIFNeuronCard } from './IdentityWidgets.jsx';
+// 恢复标准引用，不带后缀，解决 "Could not resolve"
+import { Card } from './ui/Card'; 
+import { Button } from './ui/Button'; 
+import Pomodoro from './Pomodoro';
+import DailyQuote from './DailyQuote';
+import WeatherScene3D from './WeatherScene3D';
+// 引用独立的神经形态组件，不带后缀
+import { EventStreamCursor, LIFNeuronCard } from './IdentityWidgets';
 
 const Dashboard = ({ 
   weather, 
@@ -33,7 +33,7 @@ const Dashboard = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in relative">
       
-      {/* 1. 全局事件相机特效 */}
+      {/* 全局特效：DVS 鼠标流 */}
       <EventStreamCursor />
 
       {/* --- 左侧列：工具类 --- */}
