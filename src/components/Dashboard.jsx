@@ -1,13 +1,14 @@
 import React from 'react';
 import { MapPin, Calendar, Bell, Trash2, Plus, Zap } from "lucide-react"; 
-import { Card } from './ui/Card.jsx';
-import { Button } from './ui/Button.jsx';
-import Pomodoro from './Pomodoro.jsx';
-import DailyQuote from './DailyQuote.jsx';
-import WeatherScene3D from './WeatherScene3D.jsx'; 
-import ReactionTimer from './ReactionTimer.jsx'; // 新增
-import EventSimWidget from './EventSimWidget.jsx'; // 新增
-import { LIFNeuronCard } from './IdentityWidgets.jsx'; // 新增：展示 SNN 研究
+import { Card } from './ui/Card';
+import { Button } from './ui/Button';
+import Pomodoro from './Pomodoro';
+import DailyQuote from './DailyQuote';
+import WeatherScene3D from './WeatherScene3D'; 
+import ReactionTimer from './ReactionTimer'; 
+// import EventSimWidget from './EventSimWidget'; 
+import WebcamEventCamera from './WebcamEventCamera'; 
+import { LIFNeuronCard } from './IdentityWidgets'; 
 
 const Dashboard = ({ 
   weather, 
@@ -33,29 +34,29 @@ const Dashboard = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
       
-      {/* --- 左侧列：视觉与SNN研究 --- */}
+      {/* --- 左侧列：视觉与SNN研究 (硬核极客风) --- */}
       <div className="space-y-6">
-        {/* 3D 天气场景 */}
-        <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 overflow-hidden h-64 lg:h-72">
+        {/* 1. 3D 天气场景 */}
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 overflow-hidden h-64 lg:h-72 relative group">
            <WeatherScene3D weather={weather} pomoState={pomoState} />
            <div className="absolute top-4 right-4 z-10 bg-black/20 backdrop-blur-sm px-2 py-1 rounded-lg text-white text-xs flex items-center gap-1">
              <MapPin size={10} /> {settings.city}
            </div>
         </div>
 
-        {/* 新增：Event Camera 仿真 (身份：SNN+Event Camera) */}
-        <EventSimWidget />
+        {/* 2. 新增：实时 Event Camera 摄像头仿真 (替换了之前的静态模拟) */}
+        <WebcamEventCamera />
         
-        {/* 新增：LIF 神经元模型 (身份：SNN) */}
+        {/* 3. LIF 神经元模型 (保留，展示 SNN 基础) */}
         <LIFNeuronCard />
       </div>
 
-      {/* --- 中间列：训练与效率 --- */}
+      {/* --- 中间列：训练与效率 (运动+学术) --- */}
       <div className="space-y-6">
          {/* 每日一言 */}
          <DailyQuote />
 
-         {/* 新增：起跑反应训练 (身份：短跑) */}
+         {/* 起跑反应训练 (短跑身份) */}
          <ReactionTimer />
 
          {/* 番茄钟 */}
@@ -95,7 +96,7 @@ const Dashboard = ({
         </div>
       </div>
 
-      {/* --- 右侧列：公告栏 --- */}
+      {/* --- 右侧列：公告栏 & 社交 --- */}
       <div className="lg:col-span-1 space-y-6">
         <Card className="h-full flex flex-col min-h-[400px]">
           <div className="flex justify-between items-center mb-4">
