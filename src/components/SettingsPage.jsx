@@ -1,16 +1,40 @@
 import React, { useState } from 'react';
 import { Settings, Info, Save, Calendar, Thermometer, X } from 'lucide-react';
-import { Card } from './ui/Card';
-import { Button } from './ui/Button';
+import { Card } from './ui/Card.jsx';
+import { Button } from './ui/Button.jsx';
 
-// 城市数据 (和原来保持一致，或者提取到单独的常量文件)
+// 扩充后的城市数据
 const CITIES = [
+  // --- 中国主要城市 ---
   { name: "北京 (Beijing)", value: "Beijing", lat: 39.9042, lon: 116.4074 },
   { name: "上海 (Shanghai)", value: "Shanghai", lat: 31.2304, lon: 121.4737 },
   { name: "广州 (Guangzhou)", value: "Guangzhou", lat: 23.1291, lon: 113.2644 },
   { name: "深圳 (Shenzhen)", value: "Shenzhen", lat: 22.5431, lon: 114.0579 },
   { name: "杭州 (Hangzhou)", value: "Hangzhou", lat: 30.2748, lon: 120.1551 },
-  // ... 其他城市 ...
+  { name: "成都 (Chengdu)", value: "Chengdu", lat: 30.5728, lon: 104.0668 },
+  { name: "武汉 (Wuhan)", value: "Wuhan", lat: 30.5928, lon: 114.3055 },
+  { name: "西安 (Xi'an)", value: "Xian", lat: 34.3416, lon: 108.9398 },
+  { name: "南京 (Nanjing)", value: "Nanjing", lat: 32.0603, lon: 118.7969 },
+  { name: "重庆 (Chongqing)", value: "Chongqing", lat: 29.5630, lon: 106.5516 },
+  { name: "天津 (Tianjin)", value: "Tianjin", lat: 39.3434, lon: 117.3616 },
+  { name: "苏州 (Suzhou)", value: "Suzhou", lat: 31.2989, lon: 120.5853 },
+  { name: "香港 (Hong Kong)", value: "HongKong", lat: 22.3193, lon: 114.1694 },
+  { name: "台北 (Taipei)", value: "Taipei", lat: 25.0330, lon: 121.5654 },
+  
+  // --- 国际大都市 ---
+  { name: "东京 (Tokyo)", value: "Tokyo", lat: 35.6895, lon: 139.6917 },
+  { name: "首尔 (Seoul)", value: "Seoul", lat: 37.5665, lon: 126.9780 },
+  { name: "新加坡 (Singapore)", value: "Singapore", lat: 1.3521, lon: 103.8198 },
+  { name: "曼谷 (Bangkok)", value: "Bangkok", lat: 13.7563, lon: 100.5018 },
+  { name: "伦敦 (London)", value: "London", lat: 51.5074, lon: -0.1278 },
+  { name: "巴黎 (Paris)", value: "Paris", lat: 48.8566, lon: 2.3522 },
+  { name: "柏林 (Berlin)", value: "Berlin", lat: 52.5200, lon: 13.4050 },
+  { name: "纽约 (New York)", value: "NewYork", lat: 40.7128, lon: -74.0060 },
+  { name: "旧金山 (San Francisco)", value: "SanFrancisco", lat: 37.7749, lon: -122.4194 },
+  { name: "洛杉矶 (Los Angeles)", value: "LosAngeles", lat: 34.0522, lon: -118.2437 },
+  { name: "多伦多 (Toronto)", value: "Toronto", lat: 43.6532, lon: -79.3832 },
+  { name: "悉尼 (Sydney)", value: "Sydney", lat: -33.8688, lon: 151.2093 },
+  { name: "墨尔本 (Melbourne)", value: "Melbourne", lat: -37.8136, lon: 144.9631 },
 ];
 
 const SettingsPage = ({ user, onOpenAuth, settings, setSettings, onSave, loading }) => {
@@ -40,6 +64,9 @@ const SettingsPage = ({ user, onOpenAuth, settings, setSettings, onSave, loading
     }
   };
 
+  // 确保当前设置的城市在列表中显示，如果不在（比如旧数据），可以显示为自定义或添加到列表末尾
+  const currentCityInList = CITIES.find(c => c.value === settings.city);
+
   return (
     <div className="max-w-2xl mx-auto animate-fade-in">
       <Card>
@@ -54,10 +81,9 @@ const SettingsPage = ({ user, onOpenAuth, settings, setSettings, onSave, loading
            </div>
         ) : (
           <div className="space-y-8">
-            {/* ... 设置表单内容保持原样，只需将原来的 <button> 替换为 <Button> ... */}
             <div className="bg-blue-50 p-4 rounded-xl text-sm text-blue-700 flex gap-2">
               <Info className="shrink-0" size={18} />
-              此处保存的设置将用于 GitHub Actions 每日邮件推送。
+              此处保存的设置将用于 GitHub Actions 每日邮件推送和天气展示。
             </div>
 
             {/* 城市与邮箱 */}
@@ -73,7 +99,13 @@ const SettingsPage = ({ user, onOpenAuth, settings, setSettings, onSave, loading
                     {CITIES.map(city => (
                       <option key={city.value} value={city.value}>{city.name}</option>
                     ))}
+                    {!currentCityInList && settings.city && (
+                       <option value={settings.city}>{settings.city} (自定义/旧数据)</option>
+                    )}
                   </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                  </div>
                 </div>
               </div>
               <div>
@@ -83,11 +115,11 @@ const SettingsPage = ({ user, onOpenAuth, settings, setSettings, onSave, loading
                   value={settings.emailAddress}
                   onChange={(e) => setSettings({...settings, emailAddress: e.target.value})}
                   className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="your-email@example.com"
                 />
               </div>
             </div>
             
-            {/* ... 其他设置部分省略，逻辑与原 App.jsx 相同 ... */}
             {/* 倒数日设置 */}
             <div className="space-y-4 border-t border-gray-100 pt-4">
               <h3 className="font-medium text-gray-900 flex items-center gap-2">
@@ -104,22 +136,25 @@ const SettingsPage = ({ user, onOpenAuth, settings, setSettings, onSave, loading
                     </div>
                     <button 
                       onClick={() => handleDeleteEvent(idx)}
-                      className="text-gray-400 hover:text-red-500 p-1"
+                      className="text-gray-400 hover:text-red-500 p-1 rounded-md hover:bg-red-50 transition-colors"
                     >
                       <X size={16} />
                     </button>
                   </div>
                 ))}
+                {(!settings.events || settings.events.length === 0) && (
+                    <div className="text-sm text-gray-400 text-center py-2">暂无事件</div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-5 gap-2 bg-gray-50 p-3 rounded-xl">
                  <div className="md:col-span-2">
                     <input 
                       type="text" 
-                      placeholder="事件名称"
+                      placeholder="事件名称 (如: 考研)"
                       value={tempEvent.name}
                       onChange={(e) => setTempEvent({...tempEvent, name: e.target.value})}
-                      className="w-full p-2 rounded-lg border border-gray-300 text-sm"
+                      className="w-full p-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:border-blue-500"
                     />
                  </div>
                  <div className="md:col-span-2">
@@ -127,11 +162,11 @@ const SettingsPage = ({ user, onOpenAuth, settings, setSettings, onSave, loading
                       type="date" 
                       value={tempEvent.date}
                       onChange={(e) => setTempEvent({...tempEvent, date: e.target.value})}
-                      className="w-full p-2 rounded-lg border border-gray-300 text-sm"
+                      className="w-full p-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:border-blue-500"
                     />
                  </div>
                  <div className="md:col-span-1">
-                   <Button onClick={handleAddEvent} variant="secondary" className="w-full h-full" disabled={!tempEvent.name || !tempEvent.date}>
+                   <Button onClick={handleAddEvent} variant="secondary" className="w-full h-full justify-center" disabled={!tempEvent.name || !tempEvent.date}>
                      添加
                    </Button>
                  </div>

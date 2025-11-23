@@ -1,11 +1,10 @@
 import React from 'react';
-import { MapPin, Calendar, Bell, Trash2, Plus } from "lucide-react"; 
-import { Card } from './ui/Card'; 
-import { Button } from './ui/Button'; 
+import { MapPin, Calendar, Bell, Trash2, Plus } from "lucide-react"; // 移除了 CloudRain，因为 3D 场景自带显示
+import { Card } from './ui/Card';
+import { Button } from './ui/Button';
 import Pomodoro from './Pomodoro';
 import DailyQuote from './DailyQuote';
-import WeatherScene3D from './WeatherScene3D';
-import { EventStreamCursor, LIFNeuronCard } from './IdentityWidgets';
+import WeatherScene3D from './WeatherScene3D'; // 引入新组件
 
 const Dashboard = ({ 
   weather, 
@@ -29,16 +28,15 @@ const Dashboard = ({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in relative">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
       
-      {/* 全局特效：DVS 鼠标流 */}
-      <EventStreamCursor />
-
-      {/* --- 左侧列：工具类 --- */}
+      {/* ---kv 左侧列：工具类 --- */}
       <div className="space-y-6">
-        {/* 3D 天气场景 */}
+        {/* 3D 天气场景：替换了原来的纯文本 Card */}
+        {/* 我们可以给它一个特殊的容器样式，去掉默认 Card 的 padding 以便全屏显示 canvas */}
         <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 overflow-hidden h-64 lg:h-72">
            <WeatherScene3D weather={weather} pomoState={pomoState} />
+           {/* 简单的城市显示覆盖层 */}
            <div className="absolute top-4 right-4 z-10 bg-black/20 backdrop-blur-sm px-2 py-1 rounded-lg text-white text-xs flex items-center gap-1">
              <MapPin size={10} /> {settings.city}
            </div>
@@ -50,14 +48,11 @@ const Dashboard = ({
            setState={setPomoState}
            userEmail={settings.emailAddress} 
         />
-
-        {/* 2. 新增：LIF 神经元监视器 */}
-        <LIFNeuronCard />
       </div>
 
       {/* --- 中间列：信息类 --- */}
       <div className="space-y-6">
-         {/* 每日一言 */}
+         {/* 新增：每日一言 */}
          <DailyQuote />
 
         {/* 倒数日列表 */}
