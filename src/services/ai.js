@@ -17,7 +17,7 @@ export const initializeAI = () => {
   
   // 更新：使用 Gemini 2.5 Flash Preview 模型
   // 注意：如果这个模型 ID 不可用，可以回退到 "gemini-1.5-flash"
-  model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
+  model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-09-2025" }); 
   return true;
 };
 
