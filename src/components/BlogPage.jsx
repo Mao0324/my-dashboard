@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, query, orderBy, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { BookOpen, Edit, Plus, Trash2, ChevronRight, ChevronDown, Calendar, User, ArrowLeft, Clock } from 'lucide-react';
-// 修正引用路径
+import { BookOpen, Edit, Plus, Trash2, ChevronRight, ChevronDown, Calendar, User, ArrowLeft, Clock, Cloud } from 'lucide-react';
+// 修正：使用相对路径引用
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import BlogEditor from './BlogEditor';
+import WordCloudModal from './WordCloudModal';
 
 const BlogPage = ({ db, user, onOpenAuth }) => {
   const [posts, setPosts] = useState([]);
   const [selectedPost, setSelectedPost] = useState(null);
-  const [viewMode, setViewMode] = useState('list'); // 'list' | 'read' | 'edit'
+  const [viewMode, setViewMode] = useState('list'); 
   const [expandedYears, setExpandedYears] = useState({}); 
+  const [showWordCloud, setShowWordCloud] = useState(false); 
 
-  // 获取文章列表
   useEffect(() => {
     if (!db) return;
     const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
@@ -20,7 +21,6 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
       const postsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setPosts(postsData);
       
-      // 默认展开最新年份
       if (postsData.length > 0) {
         const latestDate = postsData[0].createdAt?.seconds ? new Date(postsData[0].createdAt.seconds * 1000) : new Date();
         setExpandedYears(prev => ({ ...prev, [latestDate.getFullYear()]: true }));
@@ -29,7 +29,6 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
     return () => unsubscribe();
   }, [db]);
 
-  // 文章分组逻辑
   const groupedPosts = useMemo(() => {
     const groups = {};
     posts.forEach(post => {
@@ -48,7 +47,6 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
     setExpandedYears(prev => ({ ...prev, [year]: !prev[year] }));
   };
 
-  // 提取纯文本摘要
   const getSummary = (html) => {
     if (!html) return "暂无内容";
     const tmp = document.createElement("DIV");
@@ -57,7 +55,6 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
     return text.slice(0, 120) + (text.length > 120 ? "..." : "");
   };
 
-  // 处理器
   const handlePostClick = (post) => {
     setSelectedPost(post);
     setViewMode('read');
@@ -118,8 +115,8 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 min-h-[calc(100vh-140px)] animate-fade-in">
-      
-      {/* --- 左侧侧边栏 (目录) --- */}
+      <WordCloudModal isOpen={showWordCloud} onClose={() => setShowWordCloud(false)} posts={posts} />
+
       <Card className="md:col-span-1 h-full overflow-y-auto max-h-[calc(100vh-140px)] flex flex-col">
         <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
            <h3 className="font-bold text-gray-700 flex items-center gap-2 cursor-pointer hover:text-blue-600 transition-colors" onClick={handleBackToList}>
@@ -178,17 +175,21 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
         </div>
       </Card>
 
-      {/* --- 右侧主区域 --- */}
       <div className="md:col-span-3 h-full">
         {viewMode === 'list' && (
           <div className="space-y-6 animate-fade-in">
              <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-gray-800">最新文章</h2>
-                {user && (
-                  <Button onClick={handleCreateClick}>
-                    <Plus size={16}/> 写文章
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => setShowWordCloud(true)} className="text-sm">
+                    <Cloud size={16} /> 关键词云
                   </Button>
-                )}
+                  {user && (
+                    <Button onClick={handleCreateClick}>
+                      <Plus size={16}/> 写文章
+                    </Button>
+                  )}
+                </div>
              </div>
              <div className="grid grid-cols-1 gap-4">
                 {posts.map(post => (
