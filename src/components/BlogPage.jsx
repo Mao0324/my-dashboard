@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, query, orderBy, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { BookOpen, Edit, Plus, Trash2, ChevronRight, ChevronDown, Calendar, User } from 'lucide-react';
-import { Card } from '/src/components/ui/Card';
-import { Button } from '/src/components/ui/Button';
+import { BookOpen, Edit, Plus, Trash2, ChevronRight, ChevronDown, Calendar, User, ArrowLeft, Clock } from 'lucide-react';
+// 修正引用路径
+import { Card } from './ui/Card';
+import { Button } from './ui/Button';
 import BlogEditor from './BlogEditor';
 
 const BlogPage = ({ db, user, onOpenAuth }) => {
   const [posts, setPosts] = useState([]);
   const [selectedPost, setSelectedPost] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [expandedYears, setExpandedYears] = useState({}); // 控制树形展开状态
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'read' | 'edit'
+  const [expandedYears, setExpandedYears] = useState({}); 
 
   // 获取文章列表
   useEffect(() => {
@@ -19,10 +20,8 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
       const postsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setPosts(postsData);
       
-      // 如果没有选中文章，且不在编辑模式，默认选中第一篇
-      if (postsData.length > 0 && !selectedPost && !isEditing) {
-        setSelectedPost(postsData[0]);
-        // 默认展开最新年份
+      // 默认展开最新年份
+      if (postsData.length > 0) {
         const latestDate = postsData[0].createdAt?.seconds ? new Date(postsData[0].createdAt.seconds * 1000) : new Date();
         setExpandedYears(prev => ({ ...prev, [latestDate.getFullYear()]: true }));
       }
@@ -30,7 +29,7 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
     return () => unsubscribe();
   }, [db]);
 
-  // 使用 useMemo 处理文章分组 (树形结构)
+  // 文章分组逻辑
   const groupedPosts = useMemo(() => {
     const groups = {};
     posts.forEach(post => {
@@ -49,7 +48,31 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
     setExpandedYears(prev => ({ ...prev, [year]: !prev[year] }));
   };
 
-  // 保存文章 (新增或更新)
+  // 提取纯文本摘要
+  const getSummary = (html) => {
+    if (!html) return "暂无内容";
+    const tmp = document.createElement("DIV");
+    tmp.innerHTML = html;
+    const text = tmp.textContent || tmp.innerText || "";
+    return text.slice(0, 120) + (text.length > 120 ? "..." : "");
+  };
+
+  // 处理器
+  const handlePostClick = (post) => {
+    setSelectedPost(post);
+    setViewMode('read');
+  };
+
+  const handleCreateClick = () => {
+    setSelectedPost(null);
+    setViewMode('edit');
+  };
+
+  const handleBackToList = () => {
+    setSelectedPost(null);
+    setViewMode('list');
+  };
+
   const handleSavePost = async ({ title, content }) => {
     if (!user) return;
     try {
@@ -61,34 +84,33 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
         updatedAt: new Date()
       };
 
-      if (selectedPost && selectedPost.id && isEditing && selectedPost.authorId === user.uid) {
-        // 更新模式
+      if (selectedPost && selectedPost.id && viewMode === 'edit' && selectedPost.authorId === user.uid) {
         await updateDoc(doc(db, "posts", selectedPost.id), postData);
-        // 更新本地选中状态，避免跳回旧内容
         setSelectedPost({ ...selectedPost, ...postData });
       } else {
-        // 新增模式
         const docRef = await addDoc(collection(db, "posts"), {
           ...postData,
           createdAt: new Date()
         });
-        // 新增后自动选中新文章
         setSelectedPost({ id: docRef.id, ...postData, createdAt: { seconds: Date.now() / 1000 } });
       }
-      setIsEditing(false);
+      setViewMode('read');
     } catch (e) {
       console.error("保存失败:", e);
       alert("保存失败: " + e.message);
     }
   };
 
-  const handleDeletePost = async (id) => {
-    if (window.confirm("确定要删除这篇文章吗？此操作不可恢复。")) {
+  const handleDeletePost = async (id, e) => {
+    e?.stopPropagation();
+    if (window.confirm("确定要删除这篇文章吗？")) {
       try {
         await deleteDoc(doc(db, "posts", id));
-        if (selectedPost?.id === id) setSelectedPost(null);
-      } catch (e) {
-        console.error("删除失败:", e);
+        if (selectedPost?.id === id) {
+          setSelectedPost(null);
+          setViewMode('list');
+        }
+      } catch (err) {
         alert("删除失败");
       }
     }
@@ -97,14 +119,14 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 min-h-[calc(100vh-140px)] animate-fade-in">
       
-      {/* --- 左侧侧边栏 (标题树) --- */}
+      {/* --- 左侧侧边栏 (目录) --- */}
       <Card className="md:col-span-1 h-full overflow-y-auto max-h-[calc(100vh-140px)] flex flex-col">
         <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
-           <h3 className="font-bold text-gray-700 flex items-center gap-2">
-             <BookOpen size={18} className="text-blue-500"/> 文章目录
+           <h3 className="font-bold text-gray-700 flex items-center gap-2 cursor-pointer hover:text-blue-600 transition-colors" onClick={handleBackToList}>
+             <BookOpen size={18} className="text-blue-500"/> 博客归档
            </h3>
-           {user && !isEditing && (
-             <Button variant="icon" onClick={() => { setIsEditing(true); setSelectedPost(null); }} title="写文章">
+           {user && viewMode !== 'edit' && (
+             <Button variant="icon" onClick={handleCreateClick} title="写新文章">
                <Plus size={20} className="text-blue-600"/>
              </Button>
            )}
@@ -130,14 +152,19 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
                         {groupedPosts[year][month].map(post => (
                           <div 
                             key={post.id}
-                            onClick={() => { setSelectedPost(post); setIsEditing(false); }}
-                            className={`text-sm py-2 px-3 rounded-lg cursor-pointer transition-colors truncate ${
-                              selectedPost?.id === post.id && !isEditing 
+                            onClick={() => handlePostClick(post)}
+                            className={`text-sm py-2 px-3 rounded-lg cursor-pointer transition-colors truncate group flex justify-between items-center ${
+                              selectedPost?.id === post.id && viewMode !== 'list'
                               ? 'bg-blue-50 text-blue-700 font-medium' 
                               : 'text-gray-600 hover:bg-gray-50'
                             }`}
                           >
-                            {post.title}
+                            <span className="truncate">{post.title}</span>
+                            {user && user.uid === post.authorId && (
+                               <span onClick={(e) => handleDeletePost(post.id, e)} className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity p-1">
+                                 <Trash2 size={12} />
+                               </span>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -151,23 +178,67 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
         </div>
       </Card>
 
-      {/* --- 右侧内容区 --- */}
+      {/* --- 右侧主区域 --- */}
       <div className="md:col-span-3 h-full">
-        {isEditing ? (
-          // 编辑模式
+        {viewMode === 'list' && (
+          <div className="space-y-6 animate-fade-in">
+             <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-800">最新文章</h2>
+                {user && (
+                  <Button onClick={handleCreateClick}>
+                    <Plus size={16}/> 写文章
+                  </Button>
+                )}
+             </div>
+             <div className="grid grid-cols-1 gap-4">
+                {posts.map(post => (
+                  <Card key={post.id} className="hover:shadow-md transition-shadow cursor-pointer group border border-transparent hover:border-blue-100">
+                    <div onClick={() => handlePostClick(post)}>
+                      <h3 className="text-xl font-bold text-gray-800 group-hover:text-blue-600 mb-2 transition-colors">{post.title}</h3>
+                      <p className="text-gray-500 text-sm line-clamp-2 mb-4 font-serif leading-relaxed">
+                        {getSummary(post.content)}
+                      </p>
+                      <div className="flex items-center gap-4 text-xs text-gray-400">
+                        <span className="flex items-center gap-1"><User size={12}/> {post.authorName}</span>
+                        <span className="flex items-center gap-1">
+                          <Clock size={12}/> 
+                          {post.createdAt?.seconds ? new Date(post.createdAt.seconds * 1000).toLocaleDateString() : ''}
+                        </span>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+                {posts.length === 0 && (
+                  <div className="text-center py-20 text-gray-400 bg-white/50 rounded-2xl">
+                    <BookOpen size={48} className="mx-auto mb-4 opacity-20"/>
+                    <p>还没有人发布文章，来做第一个吧！</p>
+                  </div>
+                )}
+             </div>
+          </div>
+        )}
+
+        {viewMode === 'edit' && (
           <BlogEditor 
             onSave={handleSavePost} 
-            onCancel={() => setIsEditing(false)} 
-            initialData={selectedPost?.authorId === user?.uid ? selectedPost : null}
+            onCancel={() => selectedPost ? setViewMode('read') : setViewMode('list')} 
+            initialData={selectedPost}
           />
-        ) : selectedPost ? (
-          // 阅读模式
-          <Card className="h-full overflow-y-auto max-h-[calc(100vh-140px)] custom-scrollbar">
-            <div className="border-b border-gray-100 pb-4 mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 mb-3 leading-tight">{selectedPost.title}</h1>
+        )}
+
+        {viewMode === 'read' && selectedPost && (
+          <Card className="h-full overflow-y-auto max-h-[calc(100vh-140px)] custom-scrollbar animate-fade-in relative">
+            <button onClick={handleBackToList} className="absolute top-6 left-6 p-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors text-gray-600 md:hidden">
+               <ArrowLeft size={20} />
+            </button>
+            
+            <div className="border-b border-gray-100 pb-4 mb-6 mt-2 md:mt-0">
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 leading-tight">{selectedPost.title}</h1>
               <div className="flex items-center justify-between text-sm text-gray-500">
                 <div className="flex items-center gap-4">
-                  <span className="flex items-center gap-1"><User size={14}/> {selectedPost.authorName}</span>
+                  <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium">
+                    <User size={12}/> {selectedPost.authorName}
+                  </span>
                   <span className="flex items-center gap-1">
                     <Calendar size={14}/> 
                     {selectedPost.createdAt?.seconds ? new Date(selectedPost.createdAt.seconds * 1000).toLocaleDateString() : ''}
@@ -175,10 +246,10 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
                 </div>
                 {user && user.uid === selectedPost.authorId && (
                   <div className="flex gap-2">
-                    <Button variant="ghost" onClick={() => setIsEditing(true)} className="!p-1 text-blue-600">
+                    <Button variant="ghost" onClick={() => setViewMode('edit')} className="!p-1 text-blue-600">
                       <Edit size={16} /> 编辑
                     </Button>
-                    <Button variant="ghost" onClick={() => handleDeletePost(selectedPost.id)} className="!p-1 text-red-500 hover:bg-red-50">
+                    <Button variant="ghost" onClick={(e) => handleDeletePost(selectedPost.id, e)} className="!p-1 text-red-500 hover:bg-red-50">
                       <Trash2 size={16} />
                     </Button>
                   </div>
@@ -186,22 +257,10 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
               </div>
             </div>
             
-            {/* 文章内容渲染区 - 核心样式 */}
             <div 
-              className="prose prose-blue max-w-none custom-blog-content"
+              className="prose prose-blue prose-lg max-w-none custom-blog-content pb-10"
               dangerouslySetInnerHTML={{ __html: selectedPost.content }}
             />
-          </Card>
-        ) : (
-          // 空状态
-          <Card className="h-full flex flex-col items-center justify-center text-gray-400 min-h-[400px]">
-            <BookOpen size={64} className="mb-4 opacity-20"/>
-            <p className="text-lg">选择左侧文章开始阅读</p>
-            {user ? (
-              <Button onClick={() => setIsEditing(true)} className="mt-4">写第一篇博客</Button>
-            ) : (
-              <Button onClick={onOpenAuth} variant="secondary" className="mt-4">登录以写文章</Button>
-            )}
           </Card>
         )}
       </div>
