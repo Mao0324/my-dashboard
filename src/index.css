@@ -1,1 +1,120 @@
 @import "tailwindcss";
+
+/* 滚动条美化 */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 20px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(107, 114, 128, 0.8);
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* --- 博客内容样式 (仿飞书/Notion) --- */
+.custom-blog-content {
+  color: #374151; /* text-gray-700 */
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+/* 标题样式 */
+.custom-blog-content h1 {
+  font-size: 2.25rem; /* 36px */
+  font-weight: 800;
+  color: #111827;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.custom-blog-content h2 {
+  font-size: 1.75rem; /* 28px */
+  font-weight: 700;
+  color: #1f2937;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.25rem;
+}
+
+.custom-blog-content h3 {
+  font-size: 1.35rem; /* 22px */
+  font-weight: 600;
+  color: #374151;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* 正文与段落 */
+.custom-blog-content p {
+  margin-bottom: 1rem;
+  min-height: 1.5rem; /* 防止空行不可见 */
+}
+
+/* 链接 */
+.custom-blog-content a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* 列表 */
+.custom-blog-content ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+.custom-blog-content ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+/* 引用 */
+.custom-blog-content blockquote {
+  border-left: 4px solid #e5e7eb;
+  padding-left: 1rem;
+  font-style: italic;
+  color: #6b7280;
+  margin: 1.5rem 0;
+}
+
+/* 图片 */
+.custom-blog-content img {
+  border-radius: 0.5rem;
+  margin: 1rem auto;
+  max-width: 100%;
+}
+
+/* 重点：代码块样式 (仿飞书) */
+.custom-blog-content pre {
+  background-color: #f3f4f6; /* bg-gray-100 */
+  color: #1f2937; /* text-gray-800 */
+  padding: 1rem;
+  border-radius: 0.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.875rem;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  border: 1px solid #e5e7eb;
+}
+
+/* 选中图片高亮 */
+.custom-blog-content img:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}

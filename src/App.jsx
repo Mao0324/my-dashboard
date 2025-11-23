@@ -2,14 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, limit, doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
-import { Sun, Settings, Info, LogOut, LogIn } from 'lucide-react';
+import { Sun, Settings, Info, LogOut, LogIn, BookOpen } from 'lucide-react';
 
 // 引入拆分后的组件
 import Dashboard from './components/Dashboard';
 import SettingsPage from './components/SettingsPage';
 import AuthModal from './components/AuthModal';
-import { Button } from './components/ui/Button';
-import { Card } from './components/ui/Card';
+import BlogPage from './components/BlogPage.jsx'; // 引用新页面
+import { Button } from './components/ui/Button.jsx';
+import { Card } from './components/ui/Card.jsx';
 
 // --- Firebase 配置 ---
 const firebaseConfig = {
@@ -40,6 +41,7 @@ const AboutPage = () => (
         <p>这是一个基于 <strong>React + Firebase</strong> 的个人智能仪表盘。</p>
         <ul className="list-disc pl-5 space-y-2">
           <li>集成番茄钟、天气预报、倒数日管理。</li>
+          <li><strong>新增：</strong> 个人技术博客（富文本编辑、代码高亮、树形目录）。</li>
           <li>支持每日一言与实时公告栏。</li>
           <li>GitHub Actions 每日自动推送天气提醒。</li>
         </ul>
@@ -101,16 +103,12 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // --- 番茄钟计时逻辑 (放在 App 中，切换 Tab 不会断) ---
+  // --- 番茄钟计时逻辑 ---
   useEffect(() => {
     let interval = null;
     
-    // 计时结束处理
     const handleTimerComplete = async () => {
-      // 1. 停止计时
       setPomoState(prev => ({ ...prev, isActive: false }));
-
-      // 2. 浏览器通知
       if (Notification.permission === 'granted') {
         new Notification(`${pomoState.mode === 'focus' ? '专注' : '休息'}结束`, {
           body: `【${pomoState.eventName}】时间到了！`
@@ -119,8 +117,6 @@ export default function App() {
         Notification.requestPermission();
       }
 
-      // 3. 写入邮件队列 (Firebase Firestore)
-      // 注意：这需要后端脚本(daily_check.py)或云函数监听 mail_queue 集合来实际发送邮件
       if (user && db && settings.emailAddress) {
         try {
           await addDoc(collection(db, "mail_queue"), {
@@ -128,9 +124,8 @@ export default function App() {
             subject: `[番茄钟] ${pomoState.eventName} 完成提醒`,
             content: `您好，您的番茄钟【${pomoState.eventName}】(${pomoState.mode === 'focus' ? '专注' : '休息'}) 已于 ${new Date().toLocaleString()} 结束。请注意休息或开始下一项工作。`,
             createdAt: new Date(),
-            status: 'pending' // pending -> sent
+            status: 'pending'
           });
-          console.log("邮件发送请求已加入队列");
         } catch (e) {
           console.error("写入邮件队列失败:", e);
         }
@@ -153,7 +148,7 @@ export default function App() {
   useEffect(() => {
     const fetchWeather = async () => {
       let { latitude: lat, longitude: lon } = settings;
-      if (!lat || !lon) { lat = 39.9042; lon = 116.4074; } // 默认北京
+      if (!lat || !lon) { lat = 39.9042; lon = 116.4074; }
       try {
         const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`);
         setWeather(await res.json());
@@ -224,6 +219,7 @@ export default function App() {
             <div className="hidden md:flex gap-1 bg-gray-100/80 p-1 rounded-xl backdrop-blur-sm">
               {[
                 { id: 'dashboard', label: '概览', icon: Sun },
+                { id: 'blog', label: '博客', icon: BookOpen }, // 新增 Tab
                 { id: 'settings', label: '设置', icon: Settings },
                 { id: 'about', label: '关于', icon: Info },
               ].map((tab) => (
@@ -254,7 +250,7 @@ export default function App() {
           
           {/* 移动端导航 */}
           <div className="md:hidden flex justify-around mt-3 pt-2 border-t border-gray-100">
-            {[{ id: 'dashboard', label: '概览' }, { id: 'settings', label: '设置' }, { id: 'about', label: '关于' }].map((tab) => (
+            {[{ id: 'dashboard', label: '概览' }, { id: 'blog', label: '博客' }, { id: 'settings', label: '设置' }].map((tab) => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`text-sm font-medium ${activeTab === tab.id ? 'text-blue-600' : 'text-gray-500'}`}>
                 {tab.label}
               </button>
@@ -268,9 +264,11 @@ export default function App() {
             user={user} onDelete={deleteAnnouncement} onPost={postAnnouncement}
             newAnnouncement={newAnnouncement} setNewAnnouncement={setNewAnnouncement}
             onOpenAuth={() => setShowAuthModal(true)}
-            // 传递番茄钟状态和控制函数
             pomoState={pomoState} setPomoState={setPomoState}
           />}
+          {/* 新增 Blog 路由 */}
+          {activeTab === 'blog' && <BlogPage db={db} user={user} onOpenAuth={() => setShowAuthModal(true)} />}
+          
           {activeTab === 'settings' && <SettingsPage 
             user={user} onOpenAuth={() => setShowAuthModal(true)}
             settings={settings} setSettings={setSettings}
