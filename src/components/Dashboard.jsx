@@ -1,10 +1,13 @@
 import React from 'react';
-import { MapPin, Calendar, Bell, Trash2, Plus } from "lucide-react"; // 移除了 CloudRain，因为 3D 场景自带显示
-import { Card } from './ui/Card';
-import { Button } from './ui/Button';
-import Pomodoro from './Pomodoro';
-import DailyQuote from './DailyQuote';
-import WeatherScene3D from './WeatherScene3D'; // 引入新组件
+import { MapPin, Calendar, Bell, Trash2, Plus, Zap } from "lucide-react"; 
+import { Card } from './ui/Card.jsx';
+import { Button } from './ui/Button.jsx';
+import Pomodoro from './Pomodoro.jsx';
+import DailyQuote from './DailyQuote.jsx';
+import WeatherScene3D from './WeatherScene3D.jsx'; 
+import ReactionTimer from './ReactionTimer.jsx'; // 新增
+import EventSimWidget from './EventSimWidget.jsx'; // 新增
+import { LIFNeuronCard } from './IdentityWidgets.jsx'; // 新增：展示 SNN 研究
 
 const Dashboard = ({ 
   weather, 
@@ -30,30 +33,37 @@ const Dashboard = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
       
-      {/* ---kv 左侧列：工具类 --- */}
+      {/* --- 左侧列：视觉与SNN研究 --- */}
       <div className="space-y-6">
-        {/* 3D 天气场景：替换了原来的纯文本 Card */}
-        {/* 我们可以给它一个特殊的容器样式，去掉默认 Card 的 padding 以便全屏显示 canvas */}
+        {/* 3D 天气场景 */}
         <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 overflow-hidden h-64 lg:h-72">
            <WeatherScene3D weather={weather} pomoState={pomoState} />
-           {/* 简单的城市显示覆盖层 */}
            <div className="absolute top-4 right-4 z-10 bg-black/20 backdrop-blur-sm px-2 py-1 rounded-lg text-white text-xs flex items-center gap-1">
              <MapPin size={10} /> {settings.city}
            </div>
         </div>
 
-        {/* 番茄钟 */}
-        <Pomodoro 
-           state={pomoState} 
-           setState={setPomoState}
-           userEmail={settings.emailAddress} 
-        />
+        {/* 新增：Event Camera 仿真 (身份：SNN+Event Camera) */}
+        <EventSimWidget />
+        
+        {/* 新增：LIF 神经元模型 (身份：SNN) */}
+        <LIFNeuronCard />
       </div>
 
-      {/* --- 中间列：信息类 --- */}
+      {/* --- 中间列：训练与效率 --- */}
       <div className="space-y-6">
-         {/* 新增：每日一言 */}
+         {/* 每日一言 */}
          <DailyQuote />
+
+         {/* 新增：起跑反应训练 (身份：短跑) */}
+         <ReactionTimer />
+
+         {/* 番茄钟 */}
+         <Pomodoro 
+            state={pomoState} 
+            setState={setPomoState}
+            userEmail={settings.emailAddress} 
+         />
 
         {/* 倒数日列表 */}
         <div className="space-y-4">
@@ -66,7 +76,7 @@ const Dashboard = ({
                        {event.name}
                     </h3>
                     <span className="text-xs text-gray-400">
-                      目标日: {event.date}
+                      Target: {event.date}
                     </span>
                   </div>
                   <div className="text-right">
@@ -79,18 +89,18 @@ const Dashboard = ({
           ) : (
             <Card className="bg-white text-gray-400 border-dashed border-2 flex flex-col items-center justify-center py-8">
                <Calendar size={32} className="mb-2 opacity-50"/>
-               <p>暂无倒数日</p>
+               <p>暂无重要日程</p>
             </Card>
           )}
         </div>
       </div>
 
       {/* --- 右侧列：公告栏 --- */}
-      <div className="lg:col-span-1">
+      <div className="lg:col-span-1 space-y-6">
         <Card className="h-full flex flex-col min-h-[400px]">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Bell className="text-blue-500" /> 公告栏
+              <Bell className="text-blue-500" /> 实验室公告
             </h2>
           </div>
 
@@ -125,7 +135,7 @@ const Dashboard = ({
                   type="text"
                   value={newAnnouncement}
                   onChange={(e) => setNewAnnouncement(e.target.value)}
-                  placeholder="发布新动态..."
+                  placeholder="发布新想法..."
                   className="flex-1 bg-gray-100 border-none rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                   onKeyDown={(e) => e.key === 'Enter' && onPost()}
                 />
@@ -135,7 +145,7 @@ const Dashboard = ({
               </div>
             ) : (
               <Button variant="secondary" onClick={onOpenAuth} className="w-full justify-center text-sm">
-                登录以发布公告
+                登录以记录
               </Button>
             )}
           </div>

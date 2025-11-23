@@ -6,13 +6,14 @@ import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, limit, do
 import { Sun, Settings, Info, LogOut, LogIn, BookOpen } from 'lucide-react';
 
 // 引入拆分后的组件
-import Dashboard from './components/Dashboard';
-import SettingsPage from './components/SettingsPage';
-import AuthModal from './components/AuthModal';
+import Dashboard from './components/Dashboard.jsx';
+import SettingsPage from './components/SettingsPage.jsx';
+import AuthModal from './components/AuthModal.jsx';
 import BlogPage from './components/BlogPage.jsx';
 import { Button } from './components/ui/Button.jsx';
 import { Card } from './components/ui/Card.jsx';
-import AIAssistant from './components/AIAssistant'; // 1. 引入 AI 组件
+import AIAssistant from './components/AIAssistant.jsx'; 
+import { EventStreamCursor } from './components/IdentityWidgets.jsx'; // 引入事件流光标
 
 // ... existing Firebase Config and Init ...
 const firebaseConfig = {
@@ -42,10 +43,10 @@ const AboutPage = () => (
       <div className="prose text-gray-600 space-y-4">
         <p>这是一个基于 <strong>React + Firebase</strong> 的个人智能仪表盘。</p>
         <ul className="list-disc pl-5 space-y-2">
+          <li><strong>身份特性：</strong> 集成 Event Camera 仿真光标与起跑反应训练。</li>
           <li>集成番茄钟、天气预报、倒数日管理。</li>
           <li>个人技术博客与 3D 沉浸式天气场景。</li>
           <li><strong>AI 助手：</strong> 基于 Google Gemini，可检索本地博客与数据回答问题。</li>
-          <li>GitHub Actions 每日自动推送天气提醒。</li>
         </ul>
       </div>
     </Card>
@@ -80,7 +81,7 @@ export default function App() {
     tempLowThreshold: 10,
     emailAlerts: true,
     emailAddress: "",
-    events: [{ name: "新年", date: "2025-01-01" }]
+    events: [{ name: "论文Deadline", date: "2025-06-01" }] // 默认倒数日改为论文
   });
 
   // ... existing useEffects ...
@@ -199,9 +200,12 @@ export default function App() {
     <div className="min-h-screen text-gray-800 font-sans selection:bg-blue-200 bg-cover bg-center bg-fixed transition-all duration-1000"
       style={{ backgroundImage: `url(${bgImage})`, backgroundColor: '#f3f4f6' }}>
       
+      {/* --- 核心更新：全局事件流光标 --- */}
+      {/* 只要鼠标移动，就会在整个页面产生红绿色的事件脉冲，极客感拉满 */}
+      <EventStreamCursor />
+
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onGoogleLogin={handleGoogleLogin} auth={auth} />
 
-      {/* 2. 插入 AI 助手组件 (它固定在右下角，不影响布局) */}
       <AIAssistant db={db} user={user} />
 
       <div className="min-h-screen bg-black/10 backdrop-blur-[2px] overflow-y-auto">
