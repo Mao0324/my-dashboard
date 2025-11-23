@@ -250,7 +250,7 @@ const WeatherScene3D = ({ weather, pomoState }) => {
           {weather?.current?.temperature_2m ?? "--"}°
         </h2>
         <p className="text-sm opacity-90">
-            {isFocus ? "正在专注..." : (weatherCode === 0 ? "晴朗" : weatherCode > 50 ? "有雨/雪" : "多yn云")}
+            {isFocus ? "正在专注..." : (weatherCode === 0 ? "晴朗" : weatherCode > 50 ? "有雨/雪" : "多云")}
         </p>
       </div>
 
