@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play,Pfause, Pause, RotateCcw, Coffee, Briefcase, Settings2, Save, X } from 'lucide-react';
+import { Play, Pause, RotateCcw, Coffee, Briefcase, Settings2, Save, X } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CloudRain, MapPin, Calendar,QlRain, Bell, Trash2, Plus } from 'lucide-react';
+import { CloudRain, MapPin, Calendar, Bell, Trash2, Plus } from "lucide-react";
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import Pomodoro from './Pomodoro';
