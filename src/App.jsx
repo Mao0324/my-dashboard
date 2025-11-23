@@ -1,3 +1,4 @@
+// ... existing imports ...
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
@@ -8,11 +9,12 @@ import { Sun, Settings, Info, LogOut, LogIn, BookOpen } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import SettingsPage from './components/SettingsPage';
 import AuthModal from './components/AuthModal';
-import BlogPage from './components/BlogPage.jsx'; // 引用新页面
+import BlogPage from './components/BlogPage.jsx';
 import { Button } from './components/ui/Button.jsx';
 import { Card } from './components/ui/Card.jsx';
+import AIAssistant from './components/AIAssistant'; // 1. 引入 AI 组件
 
-// --- Firebase 配置 ---
+// ... existing Firebase Config and Init ...
 const firebaseConfig = {
   apiKey: "AIzaSyDkRBknBGFNGZ-QLWKvbPf9nJZy2dxN45I",
   authDomain: "my-dashboard-c434c.firebaseapp.com",
@@ -32,7 +34,7 @@ try {
   console.warn("Firebase 初始化失败");
 }
 
-// --- About Page 简单组件 ---
+// ... existing AboutPage component ...
 const AboutPage = () => (
   <div className="max-w-2xl mx-auto animate-fade-in">
     <Card>
@@ -41,8 +43,8 @@ const AboutPage = () => (
         <p>这是一个基于 <strong>React + Firebase</strong> 的个人智能仪表盘。</p>
         <ul className="list-disc pl-5 space-y-2">
           <li>集成番茄钟、天气预报、倒数日管理。</li>
-          <li><strong>新增：</strong> 个人技术博客（富文本编辑、代码高亮、树形目录）。</li>
-          <li>支持每日一言与实时公告栏。</li>
+          <li>个人技术博客与 3D 沉浸式天气场景。</li>
+          <li><strong>AI 助手：</strong> 基于 Google Gemini，可检索本地博客与数据回答问题。</li>
           <li>GitHub Actions 每日自动推送天气提醒。</li>
         </ul>
       </div>
@@ -51,6 +53,7 @@ const AboutPage = () => (
 );
 
 export default function App() {
+  // ... existing state ...
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [weather, setWeather] = useState(null);
@@ -60,17 +63,15 @@ export default function App() {
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [bgImage, setBgImage] = useState("");
 
-  // --- 番茄钟状态 (提升到 App 层级以保持持久化) ---
   const [pomoState, setPomoState] = useState({
     timeLeft: 25 * 60,
     isActive: false,
-    mode: 'focus', // 'focus' | 'break'
+    mode: 'focus',
     eventName: "专注任务",
-    focusDuration: 25, // minutes
-    breakDuration: 5,   // minutes
+    focusDuration: 25,
+    breakDuration: 5,
   });
 
-  // 默认设置
   const [settings, setSettings] = useState({
     city: "Beijing",
     latitude: 39.9042,
@@ -82,7 +83,7 @@ export default function App() {
     events: [{ name: "新年", date: "2025-01-01" }]
   });
 
-  // 初始化背景和 Firebase 监听
+  // ... existing useEffects ...
   useEffect(() => {
     setBgImage(`https://picsum.photos/1920/1080?random=${Date.now()}`);
     if (!auth) return;
@@ -93,7 +94,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 监听公告
   useEffect(() => {
     if (!db) return;
     const q = query(collection(db, "announcements"), orderBy("createdAt", "desc"), limit(10));
@@ -103,10 +103,22 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // --- 番茄钟计时逻辑 ---
+  // 增加 is_day 请求参数
+  useEffect(() => {
+    const fetchWeather = async () => {
+      let { latitude: lat, longitude: lon } = settings;
+      if (!lat || !lon) { lat = 39.9042; lon = 116.4074; }
+      try {
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`);
+        setWeather(await res.json());
+      } catch (e) { console.error("天气获取失败", e); }
+    };
+    fetchWeather();
+  }, [settings.city, settings.latitude, settings.longitude]);
+
+  // ... existing Pomodoro logic ...
   useEffect(() => {
     let interval = null;
-    
     const handleTimerComplete = async () => {
       setPomoState(prev => ({ ...prev, isActive: false }));
       if (Notification.permission === 'granted') {
@@ -116,19 +128,16 @@ export default function App() {
       } else if (Notification.permission === 'default') {
         Notification.requestPermission();
       }
-
       if (user && db && settings.emailAddress) {
         try {
           await addDoc(collection(db, "mail_queue"), {
             to: settings.emailAddress,
             subject: `[番茄钟] ${pomoState.eventName} 完成提醒`,
-            content: `您好，您的番茄钟【${pomoState.eventName}】(${pomoState.mode === 'focus' ? '专注' : '休息'}) 已于 ${new Date().toLocaleString()} 结束。请注意休息或开始下一项工作。`,
+            content: `您好，您的番茄钟已结束。`,
             createdAt: new Date(),
             status: 'pending'
           });
-        } catch (e) {
-          console.error("写入邮件队列失败:", e);
-        }
+        } catch (e) { console.error("写入邮件队列失败:", e); }
       }
     };
 
@@ -139,26 +148,10 @@ export default function App() {
     } else if (pomoState.timeLeft === 0 && pomoState.isActive) {
       handleTimerComplete();
     }
-
     return () => clearInterval(interval);
   }, [pomoState.isActive, pomoState.timeLeft, pomoState.mode, pomoState.eventName, user, settings.emailAddress]);
 
-
-  // 获取天气
-  useEffect(() => {
-    const fetchWeather = async () => {
-      let { latitude: lat, longitude: lon } = settings;
-      if (!lat || !lon) { lat = 39.9042; lon = 116.4074; }
-      try {
-        // 修改：增加 is_day 参数
-        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`);
-        setWeather(await res.json());
-      } catch (e) { console.error("天气获取失败", e); }
-    };
-    fetchWeather();
-  }, [settings.city, settings.latitude, settings.longitude]);
-
-  // --- Handlers ---
+  // ... existing Handlers ...
   const handleGoogleLogin = async () => {
     if (!auth) return;
     try { await signInWithPopup(auth, new GoogleAuthProvider()); setShowAuthModal(false); } 
@@ -208,9 +201,11 @@ export default function App() {
       
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onGoogleLogin={handleGoogleLogin} auth={auth} />
 
+      {/* 2. 插入 AI 助手组件 (它固定在右下角，不影响布局) */}
+      <AIAssistant db={db} user={user} />
+
       <div className="min-h-screen bg-black/10 backdrop-blur-[2px] overflow-y-auto">
-        {/* 导航栏 */}
-        <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-white/20 px-4 py-3 shadow-sm">
+        <nav className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-white/20 px-4 py-3 shadow-sm">
           <div className="max-w-6xl mx-auto flex justify-between items-center">
             <div className="flex items-center gap-2 font-bold text-xl text-blue-600 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
               <div className="p-2 bg-blue-100 rounded-lg"><Sun size={20} className="text-blue-600" /></div>
@@ -220,7 +215,7 @@ export default function App() {
             <div className="hidden md:flex gap-1 bg-gray-100/80 p-1 rounded-xl backdrop-blur-sm">
               {[
                 { id: 'dashboard', label: '概览', icon: Sun },
-                { id: 'blog', label: '博客', icon: BookOpen }, // 新增 Tab
+                { id: 'blog', label: '博客', icon: BookOpen },
                 { id: 'settings', label: '设置', icon: Settings },
                 { id: 'about', label: '关于', icon: Info },
               ].map((tab) => (
@@ -249,7 +244,6 @@ export default function App() {
             </div>
           </div>
           
-          {/* 移动端导航 */}
           <div className="md:hidden flex justify-around mt-3 pt-2 border-t border-gray-100">
             {[{ id: 'dashboard', label: '概览' }, { id: 'blog', label: '博客' }, { id: 'settings', label: '设置' }].map((tab) => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`text-sm font-medium ${activeTab === tab.id ? 'text-blue-600' : 'text-gray-500'}`}>
@@ -267,9 +261,7 @@ export default function App() {
             onOpenAuth={() => setShowAuthModal(true)}
             pomoState={pomoState} setPomoState={setPomoState}
           />}
-          {/* 新增 Blog 路由 */}
           {activeTab === 'blog' && <BlogPage db={db} user={user} onOpenAuth={() => setShowAuthModal(true)} />}
-          
           {activeTab === 'settings' && <SettingsPage 
             user={user} onOpenAuth={() => setShowAuthModal(true)}
             settings={settings} setSettings={setSettings}
