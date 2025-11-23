@@ -52,7 +52,7 @@ def get_beijing_time():
     utc_now = datetime.datetime.utcnow()
     return utc_now + datetime.timedelta(hours=8)
 
-defQD_send_email(to_addr, subject, content):
+def send_email(to_addr, subject, content):
     """发送邮件函数"""
     if not to_addr or not EMAIL_USER or not EMAIL_PASS:
         print(f"跳过发送: 邮箱配置不完整 (To: {to_addr})")
