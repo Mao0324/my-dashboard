@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Activity, Zap } from 'lucide-react';
-// 恢复标准引用，不带后缀
 import { Card } from './ui/Card';
 
 // ==========================================
@@ -99,7 +98,6 @@ export const EventStreamCursor = () => {
     };
   }, []);
 
-  // 使用 createPortal 渲染到 body，并强制样式不遮挡点击
   if (typeof document === 'undefined') return null;
 
   return createPortal(
@@ -152,7 +150,6 @@ export const LIFNeuronCard = () => {
     const width = canvas.clientWidth || 300;
     const height = canvas.clientHeight || 100;
     
-    // 设置 canvas 实际分辨率
     canvas.width = width * dpr;
     canvas.height = height * dpr;
     ctx.scale(dpr, dpr);
@@ -239,7 +236,8 @@ export const LIFNeuronCard = () => {
 
       <div className="flex justify-between items-end">
         <div>
-          <div className="text-xs text-gray-400 mb-1">Membrane Potential ($V_{mem}$)</div>
+          {/* 修复点：使用字符串包裹特殊字符，防止 JSX 错误解析 */}
+          <div className="text-xs text-gray-400 mb-1">{'Membrane Potential ($V_{mem}$)'}</div>
           <div className="text-2xl font-mono font-bold text-blue-600">
             {potential.toFixed(1)} <span className="text-sm text-gray-400">mV</span>
           </div>

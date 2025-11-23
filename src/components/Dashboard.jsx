@@ -1,12 +1,10 @@
 import React from 'react';
 import { MapPin, Calendar, Bell, Trash2, Plus } from "lucide-react"; 
-// 恢复标准引用，不带后缀，解决 "Could not resolve"
 import { Card } from './ui/Card'; 
 import { Button } from './ui/Button'; 
 import Pomodoro from './Pomodoro';
 import DailyQuote from './DailyQuote';
 import WeatherScene3D from './WeatherScene3D';
-// 引用独立的神经形态组件，不带后缀
 import { EventStreamCursor, LIFNeuronCard } from './IdentityWidgets';
 
 const Dashboard = ({ 
