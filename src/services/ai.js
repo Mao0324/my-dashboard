@@ -3,14 +3,14 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 // ⚠️ 实际项目中，建议将 Key 放在 .env 文件中: VITE_GEMINI_API_KEY
 // 这里为了演示方便，你需要填入你的 Key
 // 获取 Key 地址: https://aistudio.google.com/app/apikey
-const API_KEY = "AIzaSyC7jMGisx20Py7swvZArS4lkAV9eyheHdY"; 
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 let genAI = null;
 let model = null;
 
 export const initializeAI = () => {
   if (!API_KEY) {
-    console.warn("请在 src/services/ai.js 中配置有效的 Gemini API Key");
+    console.warn("未检测到 VITE_GEMINI_API_KEY，请检查 .env 文件配置");
     return false;
   }
   genAI = new GoogleGenerativeAI(API_KEY);
