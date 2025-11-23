@@ -6,7 +6,7 @@ import { Button } from './ui/Button';
 // 这是一个受控组件，状态由父组件 (App -> Dashboard) 传入
 const Pomodoro = ({ state, setState, userEmail }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm,QH, setEditForm] = useState({
+  const [editForm, setEditForm] = useState({
     name: state.eventName,
     focus: state.focusDuration,
     break: state.breakDuration
