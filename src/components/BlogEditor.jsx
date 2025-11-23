@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Save, Image as ImageIcon, Code, Link as LinkIcon, Type } from 'lucide-react';
-import { Button } from './ui/Button.jsx'; // 添加 .jsx 后缀
-import { Card } from './ui/Card.jsx';     // 添加 .jsx 后缀
+// 使用绝对路径以避免解析错误
+import { Button } from '/src/components/ui/Button';
+import { Card } from '/src/components/ui/Card';
 
 const BlogEditor = ({ onSave, onCancel, initialData = null }) => {
   const [title, setTitle] = useState(initialData?.title || '');

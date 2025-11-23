@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { collection, query, orderBy, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { BookOpen, Edit, Plus, Trash2, ChevronRight, ChevronDown, Calendar, User } from 'lucide-react';
-import { Card } from './ui/Card.jsx';     // 添加 .jsx 后缀
-import { Button } from './ui/Button.jsx'; // 添加 .jsx 后缀
-import BlogEditor from './BlogEditor.jsx'; // 添加 .jsx 后缀
+import { Card } from '/src/components/ui/Card';
+import { Button } from '/src/components/ui/Button';
+import BlogEditor from './BlogEditor';
 
 const BlogPage = ({ db, user, onOpenAuth }) => {
   const [posts, setPosts] = useState([]);
@@ -18,16 +18,20 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const postsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setPosts(postsData);
-      // 默认选中第一篇
+      
+      // 如果没有选中文章，且不在编辑模式，默认选中第一篇
       if (postsData.length > 0 && !selectedPost && !isEditing) {
         setSelectedPost(postsData[0]);
+        // 默认展开最新年份
+        const latestDate = postsData[0].createdAt?.seconds ? new Date(postsData[0].createdAt.seconds * 1000) : new Date();
+        setExpandedYears(prev => ({ ...prev, [latestDate.getFullYear()]: true }));
       }
     });
     return () => unsubscribe();
   }, [db]);
 
-  // 处理文章分组 (用于生成树形结构)
-  constHVGroupedPosts = () => {
+  // 使用 useMemo 处理文章分组 (树形结构)
+  const groupedPosts = useMemo(() => {
     const groups = {};
     posts.forEach(post => {
       const date = post.createdAt?.seconds ? new Date(post.createdAt.seconds * 1000) : new Date();
@@ -39,7 +43,7 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
       groups[year][month].push(post);
     });
     return groups;
-  };
+  }, [posts]);
 
   const toggleYear = (year) => {
     setExpandedYears(prev => ({ ...prev, [year]: !prev[year] }));
@@ -60,12 +64,16 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
       if (selectedPost && selectedPost.id && isEditing && selectedPost.authorId === user.uid) {
         // 更新模式
         await updateDoc(doc(db, "posts", selectedPost.id), postData);
+        // 更新本地选中状态，避免跳回旧内容
+        setSelectedPost({ ...selectedPost, ...postData });
       } else {
         // 新增模式
-        await addDoc(collection(db, "posts"), {
+        const docRef = await addDoc(collection(db, "posts"), {
           ...postData,
           createdAt: new Date()
         });
+        // 新增后自动选中新文章
+        setSelectedPost({ id: docRef.id, ...postData, createdAt: { seconds: Date.now() / 1000 } });
       }
       setIsEditing(false);
     } catch (e) {
@@ -80,31 +88,16 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
         await deleteDoc(doc(db, "posts", id));
         if (selectedPost?.id === id) setSelectedPost(null);
       } catch (e) {
+        console.error("删除失败:", e);
         alert("删除失败");
       }
     }
   };
 
-  const groupedPosts = currentGroupedPosts();
-
-  function currentGroupedPosts() {
-      const groups = {};
-      posts.forEach(post => {
-        const date = post.createdAt?.seconds ? new Date(post.createdAt.seconds * 1000) : new Date();
-        const year = date.getFullYear();
-        const month = date.getMonth() + 1;
-        
-        if (!groups[year]) groups[year] = {};
-        if (!groups[year][month]) groups[year][month] = [];
-        groups[year][month].push(post);
-      });
-      return groups;
-  }
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 min-h-[calc(100vh-120px)] animate-fade-in">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 min-h-[calc(100vh-140px)] animate-fade-in">
       
-      {/* ---kv 左侧侧边栏 (标题树) --- */}
+      {/* --- 左侧侧边栏 (标题树) --- */}
       <Card className="md:col-span-1 h-full overflow-y-auto max-h-[calc(100vh-140px)] flex flex-col">
         <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
            <h3 className="font-bold text-gray-700 flex items-center gap-2">
@@ -201,7 +194,7 @@ const BlogPage = ({ db, user, onOpenAuth }) => {
           </Card>
         ) : (
           // 空状态
-          <Card className="h-full flex flex-col items-center justify-center text-gray-400">
+          <Card className="h-full flex flex-col items-center justify-center text-gray-400 min-h-[400px]">
             <BookOpen size={64} className="mb-4 opacity-20"/>
             <p className="text-lg">选择左侧文章开始阅读</p>
             {user ? (
