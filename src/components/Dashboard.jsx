@@ -1,12 +1,13 @@
 import React from 'react';
 import { MapPin, Calendar, Bell, Trash2, Plus } from "lucide-react"; 
-import { Card } from './ui/Card.jsx'; // Explicit extension
-import { Button } from './ui/Button.jsx'; // Explicit extension
+// 修复：显式添加 .jsx 后缀，确保构建工具能正确解析
+import { Card } from './ui/Card.jsx'; 
+import { Button } from './ui/Button.jsx'; 
 import Pomodoro from './Pomodoro.jsx';
 import DailyQuote from './DailyQuote.jsx';
 import WeatherScene3D from './WeatherScene3D.jsx';
-// 引入新组件
-import { EventStreamCursor, LIFNeuronCard } from './IdentityWidgets.jsx'; // Explicit extension
+// 修复：显式添加 .jsx 后缀
+import { EventStreamCursor, LIFNeuronCard } from './IdentityWidgets.jsx';
 
 const Dashboard = ({ 
   weather, 
@@ -32,7 +33,7 @@ const Dashboard = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in relative">
       
-      {/* 1. 全局事件相机特效 (仅在 PC 端鼠标操作时明显) */}
+      {/* 1. 全局事件相机特效 */}
       <EventStreamCursor />
 
       {/* --- 左侧列：工具类 --- */}
